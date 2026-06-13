@@ -1,11 +1,11 @@
-import { readProducts, writeProducts } from '@/lib/products'
+import { readProducts, updateProduct, deleteProduct } from '@/lib/products'
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const products = readProducts()
+  const products = await readProducts()
   const product = products.find(p => p.id === id)
 
   if (!product) {
@@ -22,23 +22,22 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const products = readProducts()
-    const index = products.findIndex(p => p.id === id)
+    const updates: Record<string, unknown> = {}
 
-    if (index === -1) {
+    if (body.name !== undefined) updates.name = body.name
+    if (body.price !== undefined) updates.price = Number(body.price)
+    if (body.image !== undefined) updates.image = body.image
+    if (body.category !== undefined) updates.category = body.category
+    if (body.description !== undefined) updates.description = body.description
+    if (body.stock !== undefined) updates.stock = Number(body.stock)
+
+    const updated = await updateProduct(id, updates)
+
+    if (!updated) {
       return Response.json({ error: 'Producto no encontrado' }, { status: 404 })
     }
 
-    products[index] = {
-      ...products[index],
-      ...body,
-      price: body.price !== undefined ? Number(body.price) : products[index].price,
-      stock: body.stock !== undefined ? Number(body.stock) : products[index].stock,
-    }
-
-    writeProducts(products)
-
-    return Response.json({ success: true, product: products[index] })
+    return Response.json({ success: true, product: updated })
   } catch {
     return Response.json({ error: 'Error al actualizar producto' }, { status: 500 })
   }
@@ -50,15 +49,11 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params
-    const products = readProducts()
-    const index = products.findIndex(p => p.id === id)
+    const ok = await deleteProduct(id)
 
-    if (index === -1) {
+    if (!ok) {
       return Response.json({ error: 'Producto no encontrado' }, { status: 404 })
     }
-
-    products.splice(index, 1)
-    writeProducts(products)
 
     return Response.json({ success: true })
   } catch {

@@ -1,7 +1,7 @@
 import { readProducts } from '@/lib/products';
 
 export async function GET(request: Request) {
-  const products = readProducts();
+  const products = await readProducts();
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search')?.toLowerCase() || '';
   const category = searchParams.get('category') || 'Todas';

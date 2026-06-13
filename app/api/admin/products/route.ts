@@ -1,7 +1,7 @@
-import { readProducts, writeProducts, generateId } from '@/lib/products'
+import { readProducts, addProduct, generateId } from '@/lib/products'
 
 export async function GET() {
-  const products = readProducts()
+  const products = await readProducts()
   return Response.json({ products })
 }
 
@@ -14,8 +14,6 @@ export async function POST(request: Request) {
       return Response.json({ error: 'Faltan campos requeridos (name, price, category)' }, { status: 400 })
     }
 
-    const products = readProducts()
-
     const newProduct = {
       id: generateId(),
       name,
@@ -27,10 +25,13 @@ export async function POST(request: Request) {
       stock: stock ? Number(stock) : 0,
     }
 
-    products.push(newProduct)
-    writeProducts(products)
+    const created = await addProduct(newProduct)
 
-    return Response.json({ success: true, product: newProduct })
+    if (!created) {
+      return Response.json({ error: 'Error al crear producto en la base de datos' }, { status: 500 })
+    }
+
+    return Response.json({ success: true, product: created })
   } catch {
     return Response.json({ error: 'Error al crear producto' }, { status: 500 })
   }

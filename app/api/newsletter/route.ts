@@ -1,22 +1,4 @@
-import nodemailer from 'nodemailer';
-
-function createTransport() {
-  const { SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM } = process.env;
-
-  if (!SMTP_HOST || SMTP_HOST === 'smtp.ejemplo.com') {
-    return null;
-  }
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: Number(SMTP_PORT) || 587,
-    secure: Number(SMTP_PORT) === 465,
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-  });
-}
+import { Resend } from 'resend';
 
 function welcomeEmailHtml(email: string) {
   return `
@@ -96,29 +78,28 @@ export async function POST(request: Request) {
 
     console.log(`[Newsletter] Nuevo suscriptor: ${email}`);
 
-    const transporter = createTransport();
+    const resendApiKey = process.env.RESEND_API_KEY;
 
-    if (transporter) {
+    if (resendApiKey && resendApiKey !== 're_xxx') {
       try {
-        await transporter.sendMail({
-          from: process.env.SMTP_FROM || 'noreply@organico.com',
+        const resend = new Resend(resendApiKey);
+        await resend.emails.send({
+          from: process.env.RESEND_FROM || 'Orgánico <newsletter@organico.com>',
           to: email,
           subject: '🌿 ¡Bienvenido a Orgánico!',
           html: welcomeEmailHtml(email),
         });
-
         console.log(`[Newsletter] Email de bienvenida enviado a ${email}`);
       } catch (mailErr) {
         console.error('[Newsletter] Error al enviar email:', mailErr);
       }
     } else {
-      console.log('[Newsletter] SMTP no configurado. Email no enviado (modo desarrollo).');
+      console.log('[Newsletter] Resend no configurado. Email no enviado (modo desarrollo).');
     }
 
     return Response.json({
       success: true,
       message: 'Suscripción exitosa',
-      emailed: !!transporter,
     });
   } catch {
     return Response.json({ error: 'Error interno del servidor' }, { status: 500 });

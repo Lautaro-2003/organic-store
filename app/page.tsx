@@ -3,8 +3,8 @@ import ProductCard from '@/components/ProductCard';
 import { readProducts } from '@/lib/products';
 import { Truck, ShieldCheck, Headphones, Quote, Leaf, Sparkles } from 'lucide-react';
 
-export default function HomePage() {
-  const products = readProducts();
+export default async function HomePage() {
+  const products = await readProducts();
   const featuredProducts = products.slice(0, 3);
 
   const values = [
