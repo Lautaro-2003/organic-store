@@ -7,6 +7,7 @@ export interface CartItem {
   category: string;
   price: number;
   quantity: number;
+  stock: number;
 }
 
 // 2. Definimos qué tiene el estado global

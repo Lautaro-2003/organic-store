@@ -13,23 +13,29 @@ interface ProductCardProps {
   image?: string;
   description?: string;
   rating?: number;
+  stock?: number;
 }
 
-export default function ProductCard({ id, name, category, price, image, description, rating = 4.5 }: ProductCardProps) {
+export default function ProductCard({ id, name, category, price, image, description, rating = 4.5, stock }: ProductCardProps) {
   const addToCart = useCartStore((state) => state.addToCart);
+  const cartItem = useCartStore((state) => state.cart.find((item) => item.id === id));
   const [isAdding, setIsAdding] = useState(false);
+  const outOfStock = stock !== undefined && stock <= 0;
+  const maxedOut = !outOfStock && stock !== undefined && (cartItem?.quantity || 0) >= stock;
 
   // Intentamos obtener una imagen por defecto o usar la provista
   const productImage = image || "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=600&q=80";
 
   const handleAdd = () => {
+    if (maxedOut) return;
     setIsAdding(true);
     addToCart({ 
       id, 
       name, 
       category, 
       price, 
-      quantity: 1 
+      quantity: 1,
+      stock: stock ?? 0,
     });
     
     // Feedback visual breve
@@ -77,20 +83,30 @@ export default function ProductCard({ id, name, category, price, image, descript
       
       <div className="flex items-center justify-between mt-4 pt-3.5 border-t border-stone-100 shrink-0">
         <div className="flex flex-col">
-          <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider leading-none">Precio</span>
-          <span className="text-xl font-black text-stone-900 mt-1">$ {price.toLocaleString('es-AR')}</span>
+          {outOfStock ? (
+            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider leading-none">Sin stock</span>
+          ) : (
+            <>
+              <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider leading-none">Precio</span>
+              <span className="text-xl font-black text-stone-900 mt-1">$ {price.toLocaleString('es-AR')}</span>
+            </>
+          )}
         </div>
         
         <button 
           onClick={handleAdd}
-          disabled={isAdding}
+          disabled={isAdding || outOfStock || maxedOut}
           className={`flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm active:scale-95 ${
-            isAdding 
-              ? "bg-emerald-600 text-white shadow-emerald-600/10" 
-              : "bg-emerald-950 hover:bg-emerald-800 text-white shadow-emerald-950/10 hover:shadow-md"
+            outOfStock || maxedOut
+              ? "bg-stone-200 text-stone-400 cursor-not-allowed"
+              : isAdding 
+                ? "bg-emerald-600 text-white shadow-emerald-600/10" 
+                : "bg-emerald-950 hover:bg-emerald-800 text-white shadow-emerald-950/10 hover:shadow-md"
           }`}
         >
-          {isAdding ? (
+          {outOfStock || maxedOut ? (
+            <span>{maxedOut ? 'Stock máximo' : 'Sin stock'}</span>
+          ) : isAdding ? (
             <>
               <Check className="w-4 h-4" />
               <span>Agregado</span>

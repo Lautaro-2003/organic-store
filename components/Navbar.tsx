@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
-import { ShoppingBag, Leaf, Menu, X, ArrowRight } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { ShoppingBag, Leaf, Menu, X, ArrowRight, LogOut, User, Package } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,6 +15,8 @@ export default function Navbar() {
   // Conectamos con el store de Zustand de forma reactiva
   const cart = useCartStore((state) => state.cart);
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  const { user, loading: authLoading, signOut } = useAuth();
 
   // Efecto para detectar scroll y agregar sombreado o estilos adicionales
   useEffect(() => {
@@ -65,6 +68,35 @@ export default function Navbar() {
             </Link>
           );
         })}
+
+        {!authLoading && (
+          user ? (
+            <>
+              <Link
+                href="/mis-compras"
+                className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-emerald-700 transition py-1.5"
+              >
+                <Package className="w-3.5 h-3.5" />
+                Mis Compras
+              </Link>
+              <button
+                onClick={signOut}
+                className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-red-600 transition py-1.5"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Salir
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-emerald-700 transition py-1.5"
+            >
+              <User className="w-3.5 h-3.5" />
+              Ingresar
+            </Link>
+          )
+        )}
         
         <Link 
           href="/carrito" 
@@ -126,6 +158,36 @@ export default function Navbar() {
               </Link>
             );
           })}
+          {!authLoading && (
+            user ? (
+              <>
+                <Link
+                  href="/mis-compras"
+                  onClick={() => setIsOpen(false)}
+                  className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
+                >
+                  <span>Mis Compras</span>
+                  <Package className="w-4 h-4 opacity-70" />
+                </Link>
+                <button
+                  onClick={() => { signOut(); setIsOpen(false); }}
+                  className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <span>Cerrar Sesión</span>
+                  <LogOut className="w-4 h-4 opacity-70" />
+                </button>
+              </>
+            ) : (
+              <Link
+                href="/auth/login"
+                onClick={() => setIsOpen(false)}
+                className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
+              >
+                <span>Ingresar</span>
+                <User className="w-4 h-4 opacity-70" />
+              </Link>
+            )
+          )}
         </div>
       )}
     </nav>

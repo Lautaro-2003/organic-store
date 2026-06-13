@@ -136,6 +136,7 @@ export default function ProductosPage() {
               image={product.image}
               description={product.description}
               rating={product.rating}
+              stock={product.stock}
             />
           ))}
         </div>

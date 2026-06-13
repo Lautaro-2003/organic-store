@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import Image from 'next/image';
 import {
   Package, Plus, Pencil, Trash2, X, Search, Leaf,
   ArrowUpDown, LogOut, Upload, ImageIcon, AlertTriangle,
@@ -44,7 +46,8 @@ export default function AdminDashboard() {
     }
   }
 
-  useEffect(() => { fetchProducts(); }, []);
+
+  useEffect(() => {void fetchProducts();}, []);
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -70,7 +73,7 @@ export default function AdminDashboard() {
     setShowForm(true);
   }
 
-  async function handleSave(e: FormEvent) {
+  async function handleSave(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSaving(true);
 
@@ -175,12 +178,12 @@ export default function AdminDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <a
+            <Link
               href="/"
               className="text-xs font-semibold text-stone-500 hover:text-emerald-700 transition px-3 py-2 rounded-lg hover:bg-stone-100"
             >
               Tienda
-            </a>
+            </Link>
             <button
               onClick={handleLogout}
               className="flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg transition"
@@ -290,8 +293,8 @@ export default function AdminDashboard() {
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-stone-100 overflow-hidden shrink-0 flex items-center justify-center">
-                            {product.image ? (
-                              <img src={product.image} alt="" className="w-full h-full object-cover" />
+                            {product.image && (product.image.startsWith('http') || product.image.startsWith('/')) ? (
+                              <Image src={product.image} alt="" width={40} height={40} className="w-full h-full object-cover" />
                             ) : (
                               <ImageIcon className="w-4 h-4 text-stone-300" />
                             )}

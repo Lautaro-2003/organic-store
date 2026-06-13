@@ -3,12 +3,14 @@
 import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle, XCircle, Clock, ArrowLeft, ShoppingBag, Loader2 } from 'lucide-react';
+import { supabaseBrowser } from '@/lib/supabase-browser';
+import { useCartStore } from '@/store/cartStore';
+import { CheckCircle, XCircle, Clock, ArrowLeft, ShoppingBag, Package, Loader2 } from 'lucide-react';
 
 const statusConfig = {
   success: {
     title: '¡Pago aprobado!',
-    description: 'Tu orden fue confirmada exitosamente. En breve recibirás un email con los detalles.',
+    description: 'Tu orden fue confirmada exitosamente.',
     icon: CheckCircle,
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
@@ -37,11 +39,56 @@ type PaymentStatus = keyof typeof statusConfig;
 function ResultadoContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<PaymentStatus>('pending');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const clearCart = useCartStore((state) => state.clearCart);
 
   useEffect(() => {
     const s = searchParams.get('status') as PaymentStatus | null;
     if (s && s in statusConfig) setStatus(s);
   }, [searchParams]);
+
+  useEffect(() => {
+    if (status !== 'success' || saved || saving) return;
+
+    async function saveOrder() {
+      setSaving(true);
+      try {
+        const pendingRaw = localStorage.getItem('pending_order');
+        if (!pendingRaw) { setSaving(false); return; }
+
+        const pending = JSON.parse(pendingRaw);
+        const { data: { session } } = await supabaseBrowser.auth.getSession();
+
+        if (!session) {
+          localStorage.removeItem('pending_order');
+          setSaving(false);
+          return;
+        }
+
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ items: pending.items, total: pending.total }),
+        });
+
+        if (res.ok) {
+          localStorage.removeItem('pending_order');
+          clearCart();
+          setSaved(true);
+        }
+      } catch {
+        console.error('Error al guardar la orden');
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    saveOrder();
+  }, [status, saved, saving, clearCart]);
 
   const config = statusConfig[status];
   const Icon = config.icon;
@@ -49,33 +96,46 @@ function ResultadoContent() {
   return (
     <div className="py-12 max-w-lg mx-auto">
       <div className={`${config.bg} border ${config.border} rounded-3xl p-10 text-center shadow-sm`}>
-        <Icon className={`w-20 h-20 ${config.color} mx-auto mb-6`} />
+        <Icon className={`w-20 h-20 ${config.color} mx-auto mb-6 ${saving ? 'animate-pulse' : ''}`} />
         <h1 className="text-2xl font-black text-stone-900 mb-3">{config.title}</h1>
-        <p className="text-stone-600 text-sm mb-8 leading-relaxed">{config.description}</p>
+        <p className="text-stone-600 text-sm mb-8 leading-relaxed">
+          {saving ? 'Guardando tu orden...' : config.description}
+        </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {status === 'success' ? (
-            <Link
-              href="/productos"
-              className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm shadow-md"
-            >
-              <ShoppingBag className="w-4 h-4" />
-              Seguir comprando
-            </Link>
+            <>
+              <Link
+                href="/mis-compras"
+                className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm shadow-md"
+              >
+                <Package className="w-4 h-4" />
+                Ver mis compras
+              </Link>
+              <Link
+                href="/productos"
+                className="inline-flex items-center justify-center gap-2 bg-white border border-stone-200 text-stone-700 font-bold px-6 py-3 rounded-xl transition-all text-sm hover:bg-stone-50"
+              >
+                <ShoppingBag className="w-4 h-4" />
+                Seguir comprando
+              </Link>
+            </>
           ) : (
-            <Link
-              href="/carrito"
-              className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm shadow-md"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              Volver al carrito
-            </Link>
+            <>
+              <Link
+                href="/carrito"
+                className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm shadow-md"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Volver al carrito
+              </Link>
+              <Link
+                href="/"
+                className="inline-flex items-center justify-center gap-2 bg-white border border-stone-200 text-stone-700 font-bold px-6 py-3 rounded-xl transition-all text-sm hover:bg-stone-50"
+              >
+                Ir al inicio
+              </Link>
+            </>
           )}
-          <Link
-            href="/"
-            className="inline-flex items-center justify-center gap-2 bg-white border border-stone-200 text-stone-700 font-bold px-6 py-3 rounded-xl transition-all text-sm hover:bg-stone-50"
-          >
-            Ir al inicio
-          </Link>
         </div>
       </div>
     </div>

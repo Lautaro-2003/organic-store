@@ -24,3 +24,26 @@ SELECT * FROM (VALUES
   ('6', 'Harina de Almendras Fina', 4800, 'https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80', 'Harinas', '100% almendras molidas finamente. Ideal para recetas cetogénicas (keto), sin gluten y repostería saludable.', 4.8, 20)
 ) AS v
 WHERE NOT EXISTS (SELECT 1 FROM products LIMIT 1);
+
+-- ============================================================
+-- Tabla de órdenes de compra
+-- ============================================================
+CREATE TABLE IF NOT EXISTS orders (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  items JSONB NOT NULL,
+  total DOUBLE PRECISION NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Políticas RLS: cada usuario solo ve sus propias órdenes
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Usuarios pueden ver sus propias órdenes"
+  ON orders FOR SELECT
+  USING (auth.uid() = user_id);
+
+CREATE POLICY "Usuarios pueden insertar sus propias órdenes"
+  ON orders FOR INSERT
+  WITH CHECK (auth.uid() = user_id);

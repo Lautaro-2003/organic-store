@@ -24,6 +24,18 @@ export default function CarritoPage() {
   const createPreference = async () => {
     setCheckingOut(true);
     setError('');
+
+    const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+    const shipping = subtotal >= 15000 ? 0 : 1500;
+    const total = subtotal + shipping;
+
+    localStorage.setItem('pending_order', JSON.stringify({
+      items: cart,
+      total,
+      subtotal,
+      shipping,
+    }));
+
     try {
       const res = await fetch('/api/create-preference', {
         method: 'POST',
@@ -34,6 +46,7 @@ export default function CarritoPage() {
       if (!res.ok) throw new Error(data.error);
       setPreferenceId(data.id);
     } catch (err) {
+      localStorage.removeItem('pending_order');
       setError(err instanceof Error ? err.message : 'Error al conectar con Mercado Pago');
     } finally {
       setCheckingOut(false);
@@ -107,8 +120,12 @@ export default function CarritoPage() {
                     </button>
                     <span className="px-3 text-sm font-bold text-stone-900">{item.quantity}</span>
                     <button
-                      onClick={() => addToCart({ ...item, quantity: 1 })}
-                      className="p-1.5 text-stone-500 hover:text-stone-800 transition"
+                      onClick={() => {
+                        if (item.stock > 0 && item.quantity >= item.stock) return;
+                        addToCart({ ...item, quantity: 1 });
+                      }}
+                      disabled={item.stock > 0 && item.quantity >= item.stock}
+                      className={`p-1.5 transition rounded ${item.stock > 0 && item.quantity >= item.stock ? 'text-stone-300 cursor-not-allowed' : 'text-stone-500 hover:text-stone-800'}`}
                     >
                       <Plus className="w-3.5 h-3.5" />
                     </button>
