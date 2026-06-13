@@ -1,0 +1,72 @@
+[
+  {
+    "id": "1",
+    "name": "Almendras Premium Peladas",
+    "price": 5500,
+    "image": "https://images.unsplash.com/photo-1508061253366-f7da158b6d46?auto=format&fit=crop&w=600&q=80",
+    "category": "Frutos Secos",
+    "description": "Almendras enteras, peladas y seleccionadas de la más alta calidad. Ricas en vitamina E, calcio y grasas saludables.",
+    "rating": 4.8,
+    "stock": 25
+  },
+  {
+    "id": "2",
+    "name": "Granola Orgánica Tradicional",
+    "price": 4200,
+    "image": "https://images.unsplash.com/photo-1482049016688-2d3e1b311543?auto=format&fit=crop&w=600&q=80",
+    "category": "Orgánicos",
+    "description": "Mezcla crocante de avena entera, semillas de girasol, pasas de uva y almendras, endulzada naturalmente.",
+    "rating": 4.6,
+    "stock": 18
+  },
+  {
+    "id": "3",
+    "name": "Miel Natural de Abeja Pura",
+    "price": 3800,
+    "image": "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=600&q=80",
+    "category": "Orgánicos",
+    "description": "Miel de abeja 100% pura y cruda, extraída en frío de colmenas ubicadas en zonas libres de pesticidas.",
+    "rating": 4.9,
+    "stock": 12
+  },
+  {
+    "id": "4",
+    "name": "Nueces Mariposa Extra Light",
+    "price": 6200,
+    "image": "https://images.unsplash.com/photo-1543257580-7269da773bf5?auto=format&fit=crop&w=600&q=80",
+    "category": "Frutos Secos",
+    "description": "Nueces mariposa extra light de sabor suave, perfectas para repostería, ensaladas o como snack saludable.",
+    "rating": 4.7,
+    "stock": 30
+  },
+  {
+    "id": "5",
+    "name": "Aceite de Coco Neutro",
+    "price": 7100,
+    "image": "https://images.unsplash.com/photo-1510693206972-df098062cb71?auto=format&fit=crop&w=600&q=80",
+    "category": "Orgánicos",
+    "description": "Aceite de coco neutro prensado en frío. Ideal para cocinar a altas temperaturas sin alterar el sabor de tus platos.",
+    "rating": 4.5,
+    "stock": 15
+  },
+  {
+    "id": "6",
+    "name": "Harina de Almendras Fina",
+    "price": 4800,
+    "image": "https://images.unsplash.com/photo-1608686207856-001b95cf60ca?auto=format&fit=crop&w=600&q=80",
+    "category": "Harinas",
+    "description": "100% almendras molidas finamente. Ideal para recetas cetogénicas (keto), sin gluten y repostería saludable.",
+    "rating": 4.8,
+    "stock": 20
+  },
+  {
+    "id": "mqcsna7lae0pm7",
+    "name": "Jugos sin Azucar",
+    "price": 3000,
+    "image": "/uploads/products/1781381656429-3nd5wm.jpg",
+    "category": "Frutos Secos",
+    "description": "ricos",
+    "rating": 0,
+    "stock": 20
+  }
+]
