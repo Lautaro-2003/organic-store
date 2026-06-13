@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { CheckCircle, XCircle, Clock, ArrowLeft, ShoppingBag } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, ArrowLeft, ShoppingBag, Loader2 } from 'lucide-react';
 
 const statusConfig = {
   success: {
@@ -34,7 +34,7 @@ const statusConfig = {
 
 type PaymentStatus = keyof typeof statusConfig;
 
-export default function ResultadoPage() {
+function ResultadoContent() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<PaymentStatus>('pending');
 
@@ -79,5 +79,17 @@ export default function ResultadoPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResultadoPage() {
+  return (
+    <Suspense fallback={
+      <div className="py-20 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+      </div>
+    }>
+      <ResultadoContent />
+    </Suspense>
   );
 }
