@@ -80,6 +80,7 @@ CREATE POLICY "Usuarios pueden editar sus propias reseñas"
 -- ============================================================
 -- Función para decrementar stock al confirmar pago
 -- ============================================================
+-- Función original (mantenida por compatibilidad, pero usar reserve_stock en nuevos desarrollos)
 CREATE OR REPLACE FUNCTION decrement_stock(product_id TEXT, qty INTEGER)
 RETURNS void AS $$
 BEGIN
@@ -88,3 +89,55 @@ BEGIN
   WHERE id = product_id;
 END;
 $$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- Función atómica para reservar stock de múltiples productos
+-- Se usa antes de confirmar una orden para evitar race conditions
+-- Si algún producto no tiene stock suficiente, se revierte todo
+-- ============================================================
+CREATE OR REPLACE FUNCTION reserve_stock(p_items JSONB)
+RETURNS TEXT AS $$
+DECLARE
+  item JSONB;
+  affected INTEGER;
+  product_name TEXT;
+  product_id TEXT;
+  qty INTEGER;
+BEGIN
+  FOR item IN SELECT * FROM jsonb_array_elements(p_items)
+  LOOP
+    product_id := item->>'id';
+    qty := (item->>'quantity')::INTEGER;
+    product_name := item->>'name';
+
+    UPDATE products
+    SET stock = stock - qty
+    WHERE id = product_id AND stock >= qty;
+
+    GET DIAGNOSTICS affected = ROW_COUNT;
+
+    IF affected = 0 THEN
+      RAISE EXCEPTION 'Stock insuficiente para %', product_name;
+    END IF;
+  END LOOP;
+
+  RETURN 'OK';
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================
+-- Tabla de reservas temporales de stock
+-- Cada reserva dura 15 minutos mientras el cliente paga en MP
+-- ============================================================
+CREATE TABLE IF NOT EXISTS stock_reservations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id TEXT NOT NULL,
+  product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  quantity INTEGER NOT NULL CHECK (quantity > 0),
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_stock_reservations_session ON stock_reservations(session_id);
+CREATE INDEX IF NOT EXISTS idx_stock_reservations_expires ON stock_reservations(expires_at);
+CREATE INDEX IF NOT EXISTS idx_stock_reservations_product ON stock_reservations(product_id);

@@ -120,9 +120,21 @@ export default function MisComprasPage() {
                 </p>
               </div>
               <div className="text-right">
-                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${
+                  order.status === 'pendiente'
+                    ? 'bg-amber-50 text-amber-700'
+                    : order.status === 'en camino'
+                    ? 'bg-blue-50 text-blue-700'
+                    : order.status === 'entregado'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-stone-50 text-stone-700'
+                }`}>
                   <CreditCard className="w-3 h-3" />
-                  {order.status === 'confirmed' ? 'Confirmada' : order.status}
+                  {order.status === 'pendiente' ? 'Pendiente'
+                    : order.status === 'en camino' ? 'En camino'
+                    : order.status === 'entregado' ? 'Entregado'
+                    : order.status === 'confirmed' ? 'Confirmada'
+                    : order.status}
                 </span>
                 <p className="font-black text-stone-900 text-lg mt-1">
                   $ {order.total.toLocaleString('es-AR')}

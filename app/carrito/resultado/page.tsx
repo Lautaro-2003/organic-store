@@ -8,15 +8,15 @@ import { useCartStore } from '@/store/cartStore';
 import { CheckCircle, XCircle, Clock, ArrowLeft, ShoppingBag, Package, Loader2 } from 'lucide-react';
 
 const statusConfig = {
-  success: {
-    title: '¡Pago aprobado!',
+  approved: {
+    title: '¡Pago exitoso!',
     description: 'Tu orden fue confirmada exitosamente.',
     icon: CheckCircle,
     color: 'text-emerald-600',
     bg: 'bg-emerald-50',
     border: 'border-emerald-200',
   },
-  failure: {
+  rejected: {
     title: 'Pago rechazado',
     description: 'El pago no pudo ser procesado. Podés intentar con otro medio de pago.',
     icon: XCircle,
@@ -41,6 +41,8 @@ function ResultadoContent() {
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState('');
+  const cart = useCartStore((state) => state.cart);
   const clearCart = useCartStore((state) => state.clearCart);
 
   useEffect(() => {
@@ -49,50 +51,88 @@ function ResultadoContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (status !== 'success' || saved || saving) return;
+    if (status !== 'approved' || saved || saving) return;
+    if (!cart || cart.length === 0) return;
 
     async function saveOrder() {
       setSaving(true);
       try {
-        const pendingRaw = localStorage.getItem('pending_order');
-        if (!pendingRaw) { setSaving(false); return; }
-
-        const pending = JSON.parse(pendingRaw);
         const { data: { session } } = await supabaseBrowser.auth.getSession();
+        console.log('[Resultado] session obtenida:', session ? 'ok' : 'null');
 
         if (!session) {
-          localStorage.removeItem('pending_order');
+          setError('No hay sesión activa. Iniciá sesión y volvé a intentar.');
           setSaving(false);
           return;
         }
 
-        const res = await fetch('/api/orders', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({
-            items: pending.items,
-            total: pending.total,
-            shipping_address: pending.shipping_address,
-          }),
-        });
+        const pendingShipping = localStorage.getItem('pending_shipping');
+        if (!pendingShipping) {
+          setError('No se encontraron datos de envío. Por favor, volvé a iniciar el proceso de compra.');
+          setSaving(false);
+          return;
+        }
+
+        const session_id = localStorage.getItem('pending_session_id');
+        if (!session_id) {
+          setError('La sesión de compra expiró. Por favor, volvé a iniciar el proceso de compra.');
+          setSaving(false);
+          return;
+        }
+
+        const shippingData = JSON.parse(pendingShipping);
+
+        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        const shippingCost = subtotal >= 15000 ? 0 : 1500;
+        const total = subtotal + shippingCost;
+
+        async function postOrder(sid: string | null) {
+          return fetch('/api/orders', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              items: cart.map(({ id, name, quantity, price }) => ({ id, name, quantity, price })),
+              total,
+              shipping_address: shippingData,
+              ...(sid ? { session_id: sid } : {}),
+            }),
+          })
+        }
+
+        console.log('[Resultado] Enviando POST a /api/orders');
+        let res = await postOrder(session_id)
+        console.log('[Resultado] Respuesta POST /api/orders:', res.status, res.statusText);
+
+        if (!res.ok && res.status === 409) {
+          console.log('[Resultado] Sesión expirada, reintentando sin session_id');
+          res = await postOrder(null)
+          console.log('[Resultado] Reintento respuesta:', res.status, res.statusText);
+        }
+
+        const data = await res.json();
+        console.log('[Resultado] Body respuesta:', data);
 
         if (res.ok) {
-          localStorage.removeItem('pending_order');
+          localStorage.removeItem('pending_shipping');
+          localStorage.removeItem('pending_session_id');
           clearCart();
           setSaved(true);
+        } else {
+          setError(data.error || 'Error al guardar la orden. Contactanos para asistencia.');
         }
-      } catch {
-        console.error('Error al guardar la orden');
+      } catch (err) {
+        console.error('[Resultado] Error al guardar la orden:', err);
+        setError('Error de conexión. Tu pago fue procesado pero no pudimos guardar la orden.');
       } finally {
         setSaving(false);
       }
     }
 
     saveOrder();
-  }, [status, saved, saving, clearCart]);
+  }, [status, cart, saved, saving]);
 
   const config = statusConfig[status];
   const Icon = config.icon;
@@ -103,10 +143,13 @@ function ResultadoContent() {
         <Icon className={`w-20 h-20 ${config.color} mx-auto mb-6 ${saving ? 'animate-pulse' : ''}`} />
         <h1 className="text-2xl font-black text-stone-900 mb-3">{config.title}</h1>
         <p className="text-stone-600 text-sm mb-8 leading-relaxed">
-          {saving ? 'Guardando tu orden...' : config.description}
+          {error ? '' : saving ? 'Guardando tu orden...' : config.description}
         </p>
+        {error && (
+          <p className="text-red-500 text-sm mb-8 leading-relaxed font-semibold">{error}</p>
+        )}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          {status === 'success' ? (
+          {status === 'approved' ? (
             <>
               <Link
                 href="/mis-compras"

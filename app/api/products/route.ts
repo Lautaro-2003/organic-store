@@ -1,7 +1,48 @@
 import { readProducts } from '@/lib/products';
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+function getSupabaseAdmin() {
+  if (!supabaseUrl || supabaseUrl === 'https://xxx.supabase.co') return null;
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+}
 
 export async function GET(request: Request) {
-  const products = await readProducts();
+  const supabase = getSupabaseAdmin();
+  if (supabase) {
+    await supabase
+      .from('stock_reservations')
+      .delete()
+      .lt('expires_at', new Date().toISOString())
+  }
+
+  let products = await readProducts();
+
+  if (supabase) {
+    const productIds = products.map(p => p.id)
+    const { data: reservations } = await supabase
+      .from('stock_reservations')
+      .select('product_id, quantity')
+      .in('product_id', productIds)
+      .gt('expires_at', new Date().toISOString())
+
+    const reservedMap = new Map<string, number>()
+    if (reservations) {
+      for (const r of reservations) {
+        reservedMap.set(r.product_id, (reservedMap.get(r.product_id) || 0) + r.quantity)
+      }
+    }
+
+    products = products.map(p => ({
+      ...p,
+      stock: Math.max(0, (p.stock ?? 0) - (reservedMap.get(p.id) || 0)),
+    }))
+  }
+
   const { searchParams } = new URL(request.url);
   const search = searchParams.get('search')?.toLowerCase() || '';
   const category = searchParams.get('category') || 'Todas';

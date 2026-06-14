@@ -67,12 +67,40 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Token inválido' }, { status: 401 })
     }
 
-    const { items, total, shipping_address } = await request.json()
+    const { items, total, shipping_address, session_id } = await request.json()
     if (!items || items.length === 0) {
       return Response.json({ error: 'Carrito vacío' }, { status: 400 })
     }
 
-    const { data: order, error: insertError } = await getSupabaseAdmin()
+    const supabase = getSupabaseAdmin()
+
+    const cleanupReservations = () =>
+      session_id
+        ? supabase.from('stock_reservations').delete().eq('session_id', session_id)
+        : Promise.resolve()
+
+    if (session_id) {
+      const { data: reservations, error: reservationError } = await supabase
+        .from('stock_reservations')
+        .select('id')
+        .eq('session_id', session_id)
+        .gt('expires_at', new Date().toISOString())
+
+      if (!reservationError && reservations && reservations.length > 0) {
+        await cleanupReservations()
+      }
+    }
+
+    const { error: stockError } = await supabase
+      .rpc('reserve_stock', { p_items: items })
+
+    if (stockError) {
+      await cleanupReservations()
+      const message = stockError.message || 'Stock insuficiente'
+      return Response.json({ error: message }, { status: 409 })
+    }
+
+    const { data: order, error: insertError } = await supabase
       .from('orders')
       .insert({
         user_id: user.id,
@@ -85,30 +113,12 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
+      await cleanupReservations()
       console.error('[Orders] Error al guardar:', insertError)
       return Response.json({ error: 'Error al guardar la orden' }, { status: 500 })
     }
 
-    for (const item of items) {
-      const { error: stockError } = await getSupabaseAdmin()
-        .rpc('decrement_stock', { product_id: item.id, qty: item.quantity })
-
-      if (stockError) {
-        const { data: product } = await getSupabaseAdmin()
-          .from('products')
-          .select('stock')
-          .eq('id', item.id)
-          .single()
-
-        const currentStock = product?.stock ?? 0
-        const newStock = Math.max(0, currentStock - item.quantity)
-
-        await getSupabaseAdmin()
-          .from('products')
-          .update({ stock: newStock })
-          .eq('id', item.id)
-      }
-    }
+    await cleanupReservations()
 
     const resend = getResend()
     const adminEmail = process.env.ADMIN_EMAIL

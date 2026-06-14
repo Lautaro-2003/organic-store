@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getProduct, readProducts } from '@/lib/products'
+import { createSupabaseClient } from '@/lib/supabase'
 import { ProductPageClient } from '@/components/ProductPageClient'
 
 interface Props {
@@ -28,11 +29,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+async function getAvailableStock(productId: string, realStock: number): Promise<number> {
+  const supabase = createSupabaseClient()
+  if (!supabase) return realStock
+
+  const { data: reservations } = await supabase
+    .from('stock_reservations')
+    .select('quantity')
+    .eq('product_id', productId)
+    .gt('expires_at', new Date().toISOString())
+
+  const reserved = reservations?.reduce((sum, r) => sum + r.quantity, 0) ?? 0
+  return Math.max(0, realStock - reserved)
+}
+
 export default async function ProductoPage({ params }: Props) {
   const { id } = await params
   const product = await getProduct(id)
 
   if (!product) notFound()
 
-  return <ProductPageClient product={product} />
+  const availableStock = await getAvailableStock(id, product.stock ?? 0)
+
+  return <ProductPageClient product={{ ...product, stock: availableStock }} />
 }

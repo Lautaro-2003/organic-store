@@ -88,18 +88,21 @@ export default function CarritoPage() {
       shipping_cost: shippingCost,
       shipping_address: shipping,
     }));
+    localStorage.setItem('pending_shipping', JSON.stringify(shipping));
 
     try {
-      const res = await fetch('/api/create-preference', {
+      const res = await fetch('/api/reserve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items: cart }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
+      localStorage.setItem('pending_session_id', data.session_id);
       setPreferenceId(data.id);
     } catch (err) {
       localStorage.removeItem('pending_order');
+      localStorage.removeItem('pending_session_id');
       setError(err instanceof Error ? err.message : 'Error al conectar con Mercado Pago');
     } finally {
       setCheckingOut(false);

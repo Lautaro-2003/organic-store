@@ -50,10 +50,12 @@ interface Coupon {
 }
 
 type Tab = 'productos' | 'ordenes' | 'cupones';
+type OrderSubTab = 'activas' | 'historial';
 
 export default function AdminDashboard() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('productos');
+  const [orderSubTab, setOrderSubTab] = useState<OrderSubTab>('activas');
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +66,7 @@ export default function AdminDashboard() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     name: '',
@@ -114,6 +117,24 @@ export default function AdminDashboard() {
       console.error('Error al cargar cupones:', err);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function updateOrderStatus(orderId: string, status: string) {
+    setUpdatingOrderId(orderId)
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (res.ok) {
+        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
+      }
+    } catch {
+      console.error('Error al actualizar estado')
+    } finally {
+      setUpdatingOrderId(null)
     }
   }
 
@@ -241,6 +262,9 @@ export default function AdminDashboard() {
 
   const totalStock = products.reduce((sum, p) => sum + (p.stock || 0), 0);
   const totalValue = products.reduce((sum, p) => sum + p.price * (p.stock || 0), 0);
+
+  const activeOrders = orders.filter(o => o.status === 'pendiente' || o.status === 'en camino' || o.status === 'confirmed');
+  const historyOrders = orders.filter(o => o.status === 'entregado');
 
   if (loading) {
     return (
@@ -635,108 +659,280 @@ export default function AdminDashboard() {
 
         {tab === 'ordenes' && (
           <div className="space-y-4">
+            <div className="flex gap-1 bg-stone-100 rounded-xl p-1 w-fit">
+              <button
+                onClick={() => setOrderSubTab('activas')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition ${
+                  orderSubTab === 'activas' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                Activas ({activeOrders.length})
+              </button>
+              <button
+                onClick={() => setOrderSubTab('historial')}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition ${
+                  orderSubTab === 'historial' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+                }`}
+              >
+                Historial ({historyOrders.length})
+              </button>
+            </div>
+
             {loading ? (
               <div className="py-20 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
               </div>
-            ) : orders.length === 0 ? (
-              <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center shadow-sm">
-                <ClipboardList className="w-12 h-12 text-stone-300 mx-auto mb-3" />
-                <p className="font-bold text-stone-900">No hay órdenes aún</p>
-                <p className="text-sm text-stone-500 mt-1">Cuando los clientes realicen compras, aparecerán acá.</p>
-              </div>
-            ) : (
-              orders.map((order) => {
-                const isExpanded = expandedOrderId === order.id;
-                return (
-                  <div key={order.id} className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
-                    <button
-                      onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                      className="w-full flex items-center justify-between p-5 hover:bg-stone-50/50 transition"
-                    >
-                      <div className="flex items-center gap-4">
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg uppercase tracking-wider">
-                          {order.status === 'confirmed' ? 'Confirmada' : order.status}
-                        </span>
-                        <div className="text-left">
-                          <p className="font-bold text-stone-900 text-sm">
-                            $ {order.total.toLocaleString('es-AR')}
-                          </p>
-                          <p className="text-[10px] text-stone-400 font-mono">
-                            ID: {order.id.slice(0, 8)}... — {new Date(order.created_at).toLocaleDateString('es-AR')}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-stone-500">{order.items.length} producto{order.items.length !== 1 ? 's' : ''}</span>
-                        {isExpanded ? <ChevronUp className="w-4 h-4 text-stone-400" /> : <ChevronDown className="w-4 h-4 text-stone-400" />}
-                      </div>
-                    </button>
+            ) : null}
 
-                    {isExpanded && (
-                      <div className="border-t border-stone-100 px-5 pb-5">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-                          <div>
-                            <h4 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">Productos</h4>
-                            <div className="space-y-2">
-                              {order.items.map((item: OrderItem) => (
-                                <div key={item.id} className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-stone-900">{item.name}</span>
-                                    <span className="text-stone-400">x{item.quantity}</span>
+            {!loading && orderSubTab === 'activas' && (
+              activeOrders.length === 0 ? (
+                <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center shadow-sm">
+                  <ClipboardList className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                  <p className="font-bold text-stone-900">No hay órdenes activas</p>
+                  <p className="text-sm text-stone-500 mt-1">Las órdenes pendientes y en camino aparecerán acá.</p>
+                </div>
+              ) : (
+                activeOrders.map((order) => {
+                  const isExpanded = expandedOrderId === order.id;
+                  return (
+                    <div key={order.id} className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
+                      <button
+                        onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                        className="w-full flex items-center justify-between p-5 hover:bg-stone-50/50 transition"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div onClick={e => e.stopPropagation()}>
+                            <select
+                              value={order.status}
+                              onChange={e => updateOrderStatus(order.id, e.target.value)}
+                              disabled={updatingOrderId === order.id}
+                              className={`text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider border-0 cursor-pointer appearance-none ${
+                                order.status === 'pendiente'
+                                  ? 'bg-amber-50 text-amber-700'
+                                  : order.status === 'en camino'
+                                  ? 'bg-blue-50 text-blue-700'
+                                  : 'bg-stone-50 text-stone-700'
+                              }`}
+                            >
+                              <option value="pendiente">Pendiente</option>
+                              <option value="en camino">En camino</option>
+                              <option value="entregado">Entregado</option>
+                            </select>
+                          </div>
+                          <div className="text-left">
+                            <p className="font-bold text-stone-900 text-sm">
+                              $ {order.total.toLocaleString('es-AR')}
+                            </p>
+                            <p className="text-[10px] text-stone-400 font-mono">
+                              ID: {order.id.slice(0, 8)}... — {new Date(order.created_at).toLocaleDateString('es-AR')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-stone-500">{order.items.length} producto{order.items.length !== 1 ? 's' : ''}</span>
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-stone-400" /> : <ChevronDown className="w-4 h-4 text-stone-400" />}
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t border-stone-100 px-5 pb-5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                            <div>
+                              <h4 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">Productos</h4>
+                              <div className="space-y-2">
+                                {order.items.map((item: OrderItem) => (
+                                  <div key={item.id} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-stone-900">{item.name}</span>
+                                      <span className="text-stone-400">x{item.quantity}</span>
+                                    </div>
+                                    <span className="font-semibold text-stone-700">
+                                      $ {(item.price * item.quantity).toLocaleString('es-AR')}
+                                    </span>
                                   </div>
-                                  <span className="font-semibold text-stone-700">
-                                    $ {(item.price * item.quantity).toLocaleString('es-AR')}
-                                  </span>
-                                </div>
-                              ))}
-                              <div className="border-t border-stone-100 pt-2 flex justify-between font-bold text-stone-900">
-                                <span>Total</span>
-                                <span>$ {order.total.toLocaleString('es-AR')}</span>
+                                ))}
+                                {(() => {
+                                  const subtotal = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
+                                  const shippingCost = subtotal >= 15000 ? 0 : 1500;
+                                  return (
+                                    <>
+                                      <div className="flex justify-between text-sm text-stone-600 pt-2">
+                                        <span>Subtotal</span>
+                                        <span>$ {subtotal.toLocaleString('es-AR')}</span>
+                                      </div>
+                                      <div className="flex justify-between text-sm text-stone-600">
+                                        <span>Envío</span>
+                                        <span>{shippingCost === 0 ? <span className="text-emerald-600 font-semibold">Gratis</span> : `$ ${shippingCost.toLocaleString('es-AR')}`}</span>
+                                      </div>
+                                      <div className="border-t border-stone-100 pt-2 flex justify-between font-bold text-stone-900">
+                                        <span>Total</span>
+                                        <span>$ {order.total.toLocaleString('es-AR')}</span>
+                                      </div>
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </div>
-                          </div>
 
-                          <div>
-                            <h4 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">Datos de envío</h4>
-                            {order.shipping_address ? (
-                              <div className="space-y-2 text-sm text-stone-600">
-                                <div className="flex items-center gap-2">
-                                  <User className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                                  <span className="font-medium text-stone-900">{order.shipping_address.fullName}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Phone className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                                  <span>{order.shipping_address.phone}</span>
-                                </div>
-                                <div className="flex items-start gap-2">
-                                  <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
-                                  <div>
-                                    <p>{order.shipping_address.street}</p>
-                                    {order.shipping_address.apartment && (
-                                      <p className="text-stone-400">Depto: {order.shipping_address.apartment}</p>
-                                    )}
-                                    <p className="text-stone-400">
-                                      {order.shipping_address.neighborhood}, {order.shipping_address.province} — CP: {order.shipping_address.zipCode}
-                                    </p>
+                            <div>
+                              <h4 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">Datos de envío</h4>
+                              {order.shipping_address ? (
+                                <div className="space-y-2 text-sm text-stone-600">
+                                  <div className="flex items-center gap-2">
+                                    <User className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                    <span className="font-medium text-stone-900">{order.shipping_address.fullName}</span>
                                   </div>
-                                </div>
-                                {order.shipping_address.notes && (
-                                  <div className="bg-amber-50 text-amber-700 text-xs font-medium px-3 py-2 rounded-lg mt-2">
-                                    Notas: {order.shipping_address.notes}
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                    <span>{order.shipping_address.phone}</span>
                                   </div>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-sm text-stone-400">Sin datos de envío</p>
-                            )}
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                                    <div>
+                                      <p>{order.shipping_address.street}</p>
+                                      {order.shipping_address.apartment && (
+                                        <p className="text-stone-400">Depto: {order.shipping_address.apartment}</p>
+                                      )}
+                                      <p className="text-stone-400">
+                                        {order.shipping_address.neighborhood}, {order.shipping_address.province} — CP: {order.shipping_address.zipCode}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {order.shipping_address.notes && (
+                                    <div className="bg-amber-50 text-amber-700 text-xs font-medium px-3 py-2 rounded-lg mt-2">
+                                      Notas: {order.shipping_address.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-stone-400">Sin datos de envío</p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
+                      )}
+                    </div>
+                  );
+                })
+              )
+            )}
+
+            {!loading && orderSubTab === 'historial' && (
+              historyOrders.length === 0 ? (
+                <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center shadow-sm">
+                  <PackageCheck className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                  <p className="font-bold text-stone-900">No hay entregas aún</p>
+                  <p className="text-sm text-stone-500 mt-1">Las órdenes marcadas como entregadas aparecerán acá.</p>
+                </div>
+              ) : (
+                historyOrders.map((order) => {
+                  const isExpanded = expandedOrderId === order.id;
+                  return (
+                    <div key={order.id} className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
+                      <button
+                        onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                        className="w-full flex items-center justify-between p-5 hover:bg-stone-50/50 transition"
+                      >
+                        <div className="flex items-center gap-4">
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-emerald-50 text-emerald-700 shrink-0">
+                            Entregado
+                          </span>
+                          <div className="text-left">
+                            <p className="font-bold text-stone-900 text-sm">
+                              $ {order.total.toLocaleString('es-AR')}
+                            </p>
+                            <p className="text-[10px] text-stone-400 font-mono">
+                              ID: {order.id.slice(0, 8)}... — {new Date(order.created_at).toLocaleDateString('es-AR')}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-stone-500">{order.items.length} producto{order.items.length !== 1 ? 's' : ''}</span>
+                          {isExpanded ? <ChevronUp className="w-4 h-4 text-stone-400" /> : <ChevronDown className="w-4 h-4 text-stone-400" />}
+                        </div>
+                      </button>
+
+                      {isExpanded && (
+                        <div className="border-t border-stone-100 px-5 pb-5">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                            <div>
+                              <h4 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">Productos</h4>
+                              <div className="space-y-2">
+                                {order.items.map((item: OrderItem) => (
+                                  <div key={item.id} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-stone-900">{item.name}</span>
+                                      <span className="text-stone-400">x{item.quantity}</span>
+                                    </div>
+                                    <span className="font-semibold text-stone-700">
+                                      $ {(item.price * item.quantity).toLocaleString('es-AR')}
+                                    </span>
+                                  </div>
+                                ))}
+                                {(() => {
+                                  const subtotal = order.items.reduce((s, i) => s + i.price * i.quantity, 0);
+                                  const shippingCost = subtotal >= 15000 ? 0 : 1500;
+                                  return (
+                                    <>
+                                      <div className="flex justify-between text-sm text-stone-600 pt-2">
+                                        <span>Subtotal</span>
+                                        <span>$ {subtotal.toLocaleString('es-AR')}</span>
+                                      </div>
+                                      <div className="flex justify-between text-sm text-stone-600">
+                                        <span>Envío</span>
+                                        <span>{shippingCost === 0 ? <span className="text-emerald-600 font-semibold">Gratis</span> : `$ ${shippingCost.toLocaleString('es-AR')}`}</span>
+                                      </div>
+                                      <div className="border-t border-stone-100 pt-2 flex justify-between font-bold text-stone-900">
+                                        <span>Total</span>
+                                        <span>$ {order.total.toLocaleString('es-AR')}</span>
+                                      </div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            </div>
+
+                            <div>
+                              <h4 className="text-[10px] font-bold text-stone-500 uppercase tracking-wider mb-3">Datos de envío</h4>
+                              {order.shipping_address ? (
+                                <div className="space-y-2 text-sm text-stone-600">
+                                  <div className="flex items-center gap-2">
+                                    <User className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                    <span className="font-medium text-stone-900">{order.shipping_address.fullName}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Phone className="w-3.5 h-3.5 text-stone-400 shrink-0" />
+                                    <span>{order.shipping_address.phone}</span>
+                                  </div>
+                                  <div className="flex items-start gap-2">
+                                    <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0 mt-0.5" />
+                                    <div>
+                                      <p>{order.shipping_address.street}</p>
+                                      {order.shipping_address.apartment && (
+                                        <p className="text-stone-400">Depto: {order.shipping_address.apartment}</p>
+                                      )}
+                                      <p className="text-stone-400">
+                                        {order.shipping_address.neighborhood}, {order.shipping_address.province} — CP: {order.shipping_address.zipCode}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  {order.shipping_address.notes && (
+                                    <div className="bg-amber-50 text-amber-700 text-xs font-medium px-3 py-2 rounded-lg mt-2">
+                                      Notas: {order.shipping_address.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-stone-400">Sin datos de envío</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )
             )}
           </div>
         )}

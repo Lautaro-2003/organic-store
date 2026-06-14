@@ -1,11 +1,37 @@
 import Hero from '@/components/Hero';
 import ProductCard from '@/components/ProductCard';
 import { readProducts } from '@/lib/products';
+import { createSupabaseClient } from '@/lib/supabase';
 import { Truck, ShieldCheck, Headphones, Quote, Leaf, Sparkles } from 'lucide-react';
 
 export default async function HomePage() {
+  const supabase = createSupabaseClient()
+  if (supabase) {
+    await supabase.from('stock_reservations').delete().lt('expires_at', new Date().toISOString())
+  }
+
   const products = await readProducts();
   const featuredProducts = products.slice(0, 3);
+
+  if (supabase) {
+    const ids = featuredProducts.map(p => p.id)
+    const { data: reservations } = await supabase
+      .from('stock_reservations')
+      .select('product_id, quantity')
+      .in('product_id', ids)
+      .gt('expires_at', new Date().toISOString())
+
+    const reservedMap = new Map<string, number>()
+    if (reservations) {
+      for (const r of reservations) {
+        reservedMap.set(r.product_id, (reservedMap.get(r.product_id) || 0) + r.quantity)
+      }
+    }
+
+    for (const p of featuredProducts) {
+      p.stock = Math.max(0, (p.stock ?? 0) - (reservedMap.get(p.id) ?? 0))
+    }
+  }
 
   const values = [
     {
@@ -101,6 +127,7 @@ export default async function HomePage() {
               image={product.image}
               description={product.description}
               rating={product.rating}
+              stock={product.stock}
             />
           ))}
         </div>

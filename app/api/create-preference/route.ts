@@ -27,17 +27,19 @@ export async function POST(request: Request) {
         currency_id: 'ARS',
       })),
       back_urls: {
-        success: `${process.env.NEXT_PUBLIC_URL}/carrito/resultado?status=success`,
-        failure: `${process.env.NEXT_PUBLIC_URL}/carrito/resultado?status=failure`,
-        pending: `${process.env.NEXT_PUBLIC_URL}/carrito/resultado?status=pending`,
+        success: 'http://localhost:3000/carrito/resultado?status=approved',
+        failure: 'http://localhost:3000/carrito/resultado?status=rejected',
+        pending: 'http://localhost:3000/carrito/resultado?status=pending',
       },
-      auto_return: 'approved',
+      // auto_return: 'approved',
       statement_descriptor: 'TIENDA ORGANICA',
       payment_methods: {
         excluded_payment_types: [],
         installments: 12,
       },
     };
+
+    console.log('[MP] Preferencia a enviar:', JSON.stringify(body, null, 2));
 
     const preference = await new Preference(client).create({ body });
 
@@ -48,7 +50,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[MP] Error creating preference:', error);
     return Response.json(
-      { error: 'Error al crear la preferencia de pago. Verificá tus credenciales de Mercado Pago.' },
+      { error: error?.message || String(error) },
       { status: 500 }
     );
   }
