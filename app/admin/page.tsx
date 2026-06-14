@@ -137,7 +137,7 @@ export default function AdminDashboard() {
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/admin/login');
+    router.push('/');
   }
 
   function openCreate() {
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
               className="flex items-center gap-1.5 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-2 rounded-lg transition"
             >
               <LogOut className="w-3.5 h-3.5" />
-              Salir
+              Cerrar sesión
             </button>
           </div>
         </div>

@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     const token = authHeader.slice(7)
     const { data: { user }, error: authError } = await getSupabaseAdmin().auth.getUser(token)
     if (authError || !user) {
+      console.error('[Reviews] Auth error:', authError)
       return Response.json({ error: 'Token inválido' }, { status: 401 })
     }
 
@@ -60,7 +61,16 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'La puntuación debe ser entre 1 y 5' }, { status: 400 })
     }
 
-    const { data: review, error: insertError } = await getSupabaseAdmin()
+    const userClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: { headers: { Authorization: `Bearer ${token}` } },
+      }
+    )
+
+    const { data: review, error: insertError } = await userClient
       .from('reviews')
       .insert({
         user_id: user.id,
@@ -73,8 +83,8 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (insertError) {
-      console.error('[Reviews] Error al insertar:', insertError)
-      return Response.json({ error: 'Error al guardar la reseña' }, { status: 500 })
+      console.error('[Reviews] Error al insertar:', JSON.stringify(insertError, null, 2))
+      return Response.json({ error: insertError?.message, code: insertError?.code, details: insertError?.details, hint: insertError?.hint }, { status: 500 })
     }
 
     return Response.json({ review })

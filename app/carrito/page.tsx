@@ -4,7 +4,8 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { useCartStore } from '@/store/cartStore';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader, CreditCard, ChevronDown, ChevronUp, Tag, Percent, X } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader, CreditCard, ChevronDown, ChevronUp, Tag, Percent, X, LogIn } from 'lucide-react';
 
 interface ShippingAddress {
   fullName: string;
@@ -31,6 +32,7 @@ const provinces = [
 
 export default function CarritoPage() {
   const { cart, addToCart, decreaseQuantity, removeFromCart, clearCart } = useCartStore();
+  const { user } = useAuth();
   const [checkingOut, setCheckingOut] = useState(false);
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [error, setError] = useState('');
@@ -337,7 +339,7 @@ export default function CarritoPage() {
                     <X className="w-4 h-4" />
                   </button>
                 </div>
-              ) : (
+              ) : user ? (
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
@@ -358,6 +360,14 @@ export default function CarritoPage() {
                     {couponLoading ? <Loader className="w-3.5 h-3.5 animate-spin" /> : 'Aplicar'}
                   </button>
                 </div>
+              ) : (
+                <Link
+                  href="/auth/login"
+                  className="flex items-center gap-2 bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 text-xs text-stone-500 hover:text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50 transition"
+                >
+                  <LogIn className="w-3.5 h-3.5" />
+                  Iniciá sesión para usar cupones de descuento
+                </Link>
               )}
               {couponError && (
                 <p className="text-xs text-red-500 mt-1.5">{couponError}</p>

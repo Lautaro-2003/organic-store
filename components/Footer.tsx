@@ -98,10 +98,6 @@ export default function Footer() {
             <span className="font-semibold text-white text-xs uppercase tracking-wider mb-3">Información</span>
             <Link href="/privacidad" className="text-stone-400 hover:text-white transition duration-200 text-sm">Política de Privacidad</Link>
             <Link href="/terminos" className="text-stone-400 hover:text-white transition duration-200 text-sm">Términos y Condiciones</Link>
-            <Link href="/admin" className="text-stone-400 hover:text-white transition duration-200 text-sm flex items-center gap-1.5">
-              <Shield className="w-3 h-3" />
-              Panel Admin
-            </Link>
           </div>
         </div>
 
