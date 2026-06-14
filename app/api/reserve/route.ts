@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Reserve] Error:', error)
     return Response.json(
-      { error: error?.message || 'Error interno' },
+      { error: (error as Error)?.message || 'Error interno' },
       { status: 500 }
     )
   }
