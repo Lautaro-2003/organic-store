@@ -33,6 +33,10 @@ export async function POST(request: Request) {
       },
       auto_return: 'approved',
       statement_descriptor: 'TIENDA ORGANICA',
+      payment_methods: {
+        excluded_payment_types: [],
+        installments: 12,
+      },
     };
 
     const preference = await new Preference(client).create({ body });

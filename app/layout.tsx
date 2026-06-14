@@ -17,8 +17,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Orgánico - Mercado Saludable",
+  title: {
+    default: "Orgánico - Mercado Saludable",
+    template: "%s - Orgánico",
+  },
   description: "Alimentación consciente y sustentable para tu bienestar.",
+  icons: {
+    icon: '/favicon.svg',
+  },
+  openGraph: {
+    siteName: 'Orgánico',
+    type: 'website',
+    locale: 'es_AR',
+  },
 };
 
 export default function RootLayout({

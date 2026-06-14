@@ -72,7 +72,11 @@ function ResultadoContent() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ items: pending.items, total: pending.total }),
+          body: JSON.stringify({
+            items: pending.items,
+            total: pending.total,
+            shipping_address: pending.shipping_address,
+          }),
         });
 
         if (res.ok) {

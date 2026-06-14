@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Token inválido' }, { status: 401 })
     }
 
-    const { items, total } = await request.json()
+    const { items, total, shipping_address } = await request.json()
     if (!items || items.length === 0) {
       return Response.json({ error: 'Carrito vacío' }, { status: 400 })
     }
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
         items,
         total,
         status: 'confirmed',
+        shipping_address: shipping_address || null,
       })
       .select()
       .single()
@@ -42,6 +43,27 @@ export async function POST(request: NextRequest) {
     if (insertError) {
       console.error('[Orders] Error al guardar:', insertError)
       return Response.json({ error: 'Error al guardar la orden' }, { status: 500 })
+    }
+
+    for (const item of items) {
+      const { error: stockError } = await getSupabaseAdmin()
+        .rpc('decrement_stock', { product_id: item.id, qty: item.quantity })
+
+      if (stockError) {
+        const { data: product } = await getSupabaseAdmin()
+          .from('products')
+          .select('stock')
+          .eq('id', item.id)
+          .single()
+
+        const currentStock = product?.stock ?? 0
+        const newStock = Math.max(0, currentStock - item.quantity)
+
+        await getSupabaseAdmin()
+          .from('products')
+          .update({ stock: newStock })
+          .eq('id', item.id)
+      }
     }
 
     return Response.json({ order })

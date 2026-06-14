@@ -84,16 +84,23 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Navigation */}
-        <div className="flex flex-col gap-2">
-          <span className="font-semibold text-white text-xs uppercase tracking-wider mb-3">Navegación</span>
-          <Link href="/" className="text-stone-400 hover:text-white transition duration-200 text-sm">Inicio</Link>
-          <Link href="/productos" className="text-stone-400 hover:text-white transition duration-200 text-sm">Productos</Link>
-          <Link href="/carrito" className="text-stone-400 hover:text-white transition duration-200 text-sm">Mi Carrito</Link>
-          <div className="border-t border-stone-800 pt-2 mt-2">
-            <Link href="/admin" className="text-stone-600 hover:text-stone-400 transition duration-200 text-xs flex items-center gap-1.5">
+        {/* Navigation + Legal */}
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <span className="font-semibold text-white text-xs uppercase tracking-wider mb-3">Navegación</span>
+            <Link href="/" className="text-stone-400 hover:text-white transition duration-200 text-sm">Inicio</Link>
+            <Link href="/productos" className="text-stone-400 hover:text-white transition duration-200 text-sm">Productos</Link>
+            <Link href="/sobre-nosotros" className="text-stone-400 hover:text-white transition duration-200 text-sm">Sobre Nosotros</Link>
+            <Link href="/carrito" className="text-stone-400 hover:text-white transition duration-200 text-sm">Mi Carrito</Link>
+            <Link href="/mis-compras" className="text-stone-400 hover:text-white transition duration-200 text-sm">Mis Compras</Link>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="font-semibold text-white text-xs uppercase tracking-wider mb-3">Información</span>
+            <Link href="/privacidad" className="text-stone-400 hover:text-white transition duration-200 text-sm">Política de Privacidad</Link>
+            <Link href="/terminos" className="text-stone-400 hover:text-white transition duration-200 text-sm">Términos y Condiciones</Link>
+            <Link href="/admin" className="text-stone-400 hover:text-white transition duration-200 text-sm flex items-center gap-1.5">
               <Shield className="w-3 h-3" />
-              Admin
+              Panel Admin
             </Link>
           </div>
         </div>

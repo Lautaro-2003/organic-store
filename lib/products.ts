@@ -23,6 +23,49 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8)
 }
 
+export async function getProduct(id: string): Promise<Product | null> {
+  const supabase = createSupabaseClient()
+  if (!supabase) {
+    const products = readJsonProducts()
+    return products.find(p => p.id === id) ?? null
+  }
+
+  const { data, error } = await supabase.from('products').select('*').eq('id', id).single()
+
+  if (error) {
+    console.error('[Supabase] Error al leer producto:', error.message)
+    const products = readJsonProducts()
+    return products.find(p => p.id === id) ?? null
+  }
+
+  return data as Product
+}
+
+export async function updateProductStock(id: string, quantity: number): Promise<boolean> {
+  const supabase = createSupabaseClient()
+  if (!supabase) {
+    const products = readJsonProducts()
+    const index = products.findIndex(p => p.id === id)
+    if (index === -1) return false
+    products[index].stock = Math.max(0, (products[index].stock ?? 0) - quantity)
+    writeJsonProducts(products)
+    return true
+  }
+
+  const product = await getProduct(id)
+  if (!product) return false
+
+  const newStock = Math.max(0, (product.stock ?? 0) - quantity)
+  const { error } = await supabase.from('products').update({ stock: newStock }).eq('id', id)
+
+  if (error) {
+    console.error('[Supabase] Error al actualizar stock:', error.message)
+    return false
+  }
+
+  return true
+}
+
 export async function readProducts(): Promise<Product[]> {
   const supabase = createSupabaseClient()
   if (!supabase) return readJsonProducts()

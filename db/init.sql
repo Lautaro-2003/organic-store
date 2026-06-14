@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS orders (
   items JSONB NOT NULL,
   total DOUBLE PRECISION NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
+  shipping_address JSONB DEFAULT NULL,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -47,3 +48,43 @@ CREATE POLICY "Usuarios pueden ver sus propias órdenes"
 CREATE POLICY "Usuarios pueden insertar sus propias órdenes"
   ON orders FOR INSERT
   WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- Tabla de reseñas de productos
+-- ============================================================
+CREATE TABLE IF NOT EXISTS reviews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  comment TEXT NOT NULL,
+  user_name TEXT DEFAULT 'Usuario',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE reviews ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Todos pueden ver reseñas"
+  ON reviews FOR SELECT
+  USING (true);
+
+CREATE POLICY "Usuarios autenticados pueden insertar reseñas"
+  ON reviews FOR INSERT
+  WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Usuarios pueden editar sus propias reseñas"
+  ON reviews FOR UPDATE
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================
+-- Función para decrementar stock al confirmar pago
+-- ============================================================
+CREATE OR REPLACE FUNCTION decrement_stock(product_id TEXT, qty INTEGER)
+RETURNS void AS $$
+BEGIN
+  UPDATE products
+  SET stock = GREATEST(0, stock - qty)
+  WHERE id = product_id;
+END;
+$$ LANGUAGE plpgsql;
