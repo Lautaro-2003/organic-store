@@ -4,7 +4,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import Link from 'next/link';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { useCartStore } from '@/store/cartStore';
-import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader, CreditCard, ChevronDown, ChevronUp } from 'lucide-react';
+import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader, CreditCard, ChevronDown, ChevronUp, Tag, Percent, X } from 'lucide-react';
 
 interface ShippingAddress {
   fullName: string;
@@ -37,6 +37,10 @@ export default function CarritoPage() {
   const [shipping, setShipping] = useState<ShippingAddress>(emptyShipping);
   const [showForm, setShowForm] = useState(false);
   const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount_percent: number } | null>(null);
 
   useEffect(() => {
     initMercadoPago(process.env.NEXT_PUBLIC_MP_PUBLIC_KEY!);
@@ -45,7 +49,9 @@ export default function CarritoPage() {
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const shippingCost = subtotal >= 15000 ? 0 : 1500;
-  const total = subtotal + shippingCost;
+  const discountPercent = appliedCoupon?.discount_percent ?? 0;
+  const discount = Math.round(subtotal * discountPercent / 100);
+  const total = subtotal + shippingCost - discount;
 
   function validateForm(): boolean {
     const errors: string[] = [];
@@ -74,6 +80,9 @@ export default function CarritoPage() {
       items: cart,
       total,
       subtotal,
+      discount,
+      discount_percent: discountPercent,
+      coupon_code: appliedCoupon?.code,
       shipping_cost: shippingCost,
       shipping_address: shipping,
     }));
@@ -94,6 +103,37 @@ export default function CarritoPage() {
       setCheckingOut(false);
     }
   };
+
+  async function handleApplyCoupon() {
+    if (!couponCode.trim()) return
+    setCouponLoading(true)
+    setCouponError('')
+    setAppliedCoupon(null)
+
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setCouponError(data.error || 'Cupón inválido')
+        return
+      }
+      setAppliedCoupon({ code: data.code, discount_percent: data.discount_percent })
+      setCouponCode('')
+    } catch {
+      setCouponError('Error al validar el cupón')
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null)
+    setCouponError('')
+  }
 
   if (cart.length === 0) {
     return (
@@ -277,7 +317,53 @@ export default function CarritoPage() {
                   Sumá $ {(15000 - subtotal).toLocaleString('es-AR')} más para envío gratis
                 </p>
               )}
+              {discount > 0 && (
+                <div className="flex justify-between text-emerald-700">
+                  <span>Descuento ({appliedCoupon?.code})</span>
+                  <span className="font-bold">- $ {discount.toLocaleString('es-AR')}</span>
+                </div>
+              )}
             </div>
+
+            <div className="mb-4">
+              {appliedCoupon ? (
+                <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-xl px-3.5 py-2.5">
+                  <div className="flex items-center gap-2">
+                    <Percent className="w-4 h-4 text-emerald-600" />
+                    <span className="text-sm font-bold text-emerald-700">{appliedCoupon.code}</span>
+                    <span className="text-xs text-emerald-600 font-semibold">({appliedCoupon.discount_percent}% OFF)</span>
+                  </div>
+                  <button onClick={handleRemoveCoupon} className="text-emerald-500 hover:text-emerald-700 transition">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Tag className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-stone-400" />
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={e => { setCouponCode(e.target.value.toUpperCase()); setCouponError('') }}
+                      onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleApplyCoupon() } }}
+                      placeholder="Código de descuento"
+                      className="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 pl-9 pr-3 text-xs text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    />
+                  </div>
+                  <button
+                    onClick={handleApplyCoupon}
+                    disabled={couponLoading || !couponCode.trim()}
+                    className="bg-stone-900 hover:bg-stone-800 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition disabled:opacity-50"
+                  >
+                    {couponLoading ? <Loader className="w-3.5 h-3.5 animate-spin" /> : 'Aplicar'}
+                  </button>
+                </div>
+              )}
+              {couponError && (
+                <p className="text-xs text-red-500 mt-1.5">{couponError}</p>
+              )}
+            </div>
+
             <div className="flex justify-between font-black text-xl text-stone-900 mb-6">
               <span>Total:</span>
               <span>$ {total.toLocaleString('es-AR')}</span>

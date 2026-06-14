@@ -1,16 +1,23 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { useAuth } from '@/context/AuthContext';
-import { ShoppingBag, Leaf, Menu, X, ArrowRight, LogOut, User, Package } from 'lucide-react';
+import { ShoppingBag, Leaf, Menu, X, ArrowRight, LogOut, User, Package, Search } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ id: string; name: string; price: number; category: string }[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const pathname = usePathname();
+  const router = useRouter();
   
   // Conectamos con el store de Zustand de forma reactiva
   const cart = useCartStore((state) => state.cart);
@@ -18,7 +25,6 @@ export default function Navbar() {
 
   const { user, loading: authLoading, signOut } = useAuth();
 
-  // Efecto para detectar scroll y agregar sombreado o estilos adicionales
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
@@ -26,6 +32,46 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSearchLoading(true);
+      try {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(searchQuery)}`);
+        const data = await res.json();
+        setSearchResults(data.products?.slice(0, 6) || []);
+      } catch {
+        setSearchResults([]);
+      } finally {
+        setSearchLoading(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSearchOpen(false);
+        setSearchQuery('');
+        setSearchResults([]);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (searchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchOpen]);
 
   const navLinks = [
     { name: 'Inicio', path: '/' },
@@ -68,6 +114,55 @@ export default function Navbar() {
             </Link>
           );
         })}
+
+        <div ref={searchRef} className="relative">
+          <button
+            onClick={() => setSearchOpen(!searchOpen)}
+            className="p-2 text-stone-500 hover:text-emerald-700 transition rounded-lg hover:bg-stone-100"
+            aria-label="Buscar"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+
+          {searchOpen && (
+            <div className="absolute right-0 top-full mt-2 w-80 bg-white border border-stone-200 rounded-2xl shadow-xl overflow-hidden z-50">
+              <div className="p-3 border-b border-stone-100">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-stone-400" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Buscar productos..."
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 pl-10 pr-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                  />
+                </div>
+              </div>
+              <div className="max-h-72 overflow-y-auto">
+                {searchLoading ? (
+                  <div className="p-4 text-center text-xs text-stone-400">Buscando...</div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map(product => (
+                    <button
+                      key={product.id}
+                      onClick={() => { router.push(`/productos/${product.id}`); setSearchOpen(false); setSearchQuery(''); setSearchResults([]); }}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-stone-50 transition text-left"
+                    >
+                      <div>
+                        <p className="text-sm font-semibold text-stone-900">{product.name}</p>
+                        <p className="text-[10px] text-stone-400">{product.category}</p>
+                      </div>
+                      <span className="text-sm font-bold text-emerald-700">$ {product.price.toLocaleString('es-AR')}</span>
+                    </button>
+                  ))
+                ) : searchQuery.trim() ? (
+                  <div className="p-4 text-center text-xs text-stone-400">No se encontraron productos</div>
+                ) : null}
+              </div>
+            </div>
+          )}
+        </div>
 
         {!authLoading && (
           user ? (

@@ -8,7 +8,7 @@ import {
   Package, Plus, Pencil, Trash2, X, Search, Leaf,
   ArrowUpDown, LogOut, Upload, ImageIcon, AlertTriangle,
   Check, Loader2, DollarSign, ShoppingBag, PackageCheck,
-  ClipboardList, ChevronDown, ChevronUp, MapPin, Phone, User, Calendar,
+  ClipboardList, ChevronDown, ChevronUp, MapPin, Phone, User, Calendar, Percent, Tag,
 } from 'lucide-react';
 import type { Product } from '@/types/product';
 
@@ -40,7 +40,16 @@ interface Order {
   created_at: string;
 }
 
-type Tab = 'productos' | 'ordenes';
+interface Coupon {
+  id: string;
+  code: string;
+  discount_percent: number;
+  active: boolean;
+  expires_at: string | null;
+  created_at: string;
+}
+
+type Tab = 'productos' | 'ordenes' | 'cupones';
 
 export default function AdminDashboard() {
   const router = useRouter();
@@ -66,6 +75,10 @@ export default function AdminDashboard() {
   });
 
   const [uploading, setUploading] = useState(false);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [couponForm, setCouponForm] = useState({ code: '', discount_percent: '', expires_at: '' });
+  const [showCouponForm, setShowCouponForm] = useState(false);
+  const [savingCoupon, setSavingCoupon] = useState(false);
 
   async function fetchProducts() {
     try {
@@ -91,12 +104,28 @@ export default function AdminDashboard() {
     }
   }
 
+  async function fetchCoupons() {
+    try {
+      const res = await fetch('/api/admin/coupons');
+      if (res.status === 401) { router.push('/admin/login'); return; }
+      const data = await res.json();
+      if (data.coupons) setCoupons(data.coupons);
+    } catch (err) {
+      console.error('Error al cargar cupones:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     if (tab === 'productos') {
       void fetchProducts();
-    } else {
+    } else if (tab === 'ordenes') {
       setLoading(true);
       void fetchOrders().finally(() => setLoading(false));
+    } else {
+      setLoading(true);
+      void fetchCoupons().finally(() => setLoading(false));
     }
   }, [tab]);
 
@@ -271,6 +300,15 @@ export default function AdminDashboard() {
           >
             <ClipboardList className="w-3.5 h-3.5" />
             Órdenes
+          </button>
+          <button
+            onClick={() => setTab('cupones')}
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold transition ${
+              tab === 'cupones' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+            }`}
+          >
+            <Percent className="w-3.5 h-3.5" />
+            Cupones
           </button>
         </div>
 
@@ -701,6 +739,140 @@ export default function AdminDashboard() {
               })
             )}
           </div>
+        )}
+
+        {tab === 'cupones' && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-black text-stone-900">Cupones de descuento</h2>
+              <button
+                onClick={() => { setCouponForm({ code: '', discount_percent: '', expires_at: '' }); setShowCouponForm(true); }}
+                className="bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 shadow-lg shadow-emerald-800/10"
+              >
+                <Plus className="w-4 h-4" />
+                Nuevo Cupón
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="py-20 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+              </div>
+            ) : coupons.length === 0 ? (
+              <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center shadow-sm">
+                <Percent className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                <p className="font-bold text-stone-900">No hay cupones</p>
+                <p className="text-sm text-stone-500 mt-1">Creá tu primer cupón de descuento.</p>
+              </div>
+            ) : (
+              <div className="bg-white border border-stone-200 rounded-2xl shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-stone-50 text-stone-500 text-[10px] font-bold uppercase tracking-wider">
+                        <th className="text-left px-5 py-3">Código</th>
+                        <th className="text-left px-5 py-3">Descuento</th>
+                        <th className="text-left px-5 py-3">Estado</th>
+                        <th className="text-left px-5 py-3 hidden sm:table-cell">Vence</th>
+                        <th className="text-right px-5 py-3">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {coupons.map(coupon => (
+                        <tr key={coupon.id} className="hover:bg-stone-50/50 transition">
+                          <td className="px-5 py-4">
+                            <span className="font-bold text-stone-900">{coupon.code}</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="font-black text-emerald-700">{coupon.discount_percent}%</span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${coupon.active ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                              {coupon.active ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 hidden sm:table-cell">
+                            <span className="text-xs text-stone-500">
+                              {coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString('es-AR') : 'Sin fecha'}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 text-right">
+                            <button
+                              onClick={async () => {
+                                const res = await fetch(`/api/admin/coupons/${coupon.id}`, { method: 'PATCH' })
+                                if (res.ok) fetchCoupons()
+                              }}
+                              className={`p-2 rounded-lg transition text-xs font-bold ${coupon.active ? 'text-red-500 hover:bg-red-50' : 'text-emerald-600 hover:bg-emerald-50'}`}
+                            >
+                              {coupon.active ? 'Desactivar' : 'Activar'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {showCouponForm && (
+              <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setShowCouponForm(false)}>
+                <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md mt-20 mb-12" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between p-6 border-b border-stone-100">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl">
+                        <Percent className="w-5 h-5" />
+                      </div>
+                      <h2 className="font-black text-stone-900">Nuevo Cupón</h2>
+                    </div>
+                    <button onClick={() => setShowCouponForm(false)} className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-xl transition">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <form onSubmit={async (e) => {
+                    e.preventDefault()
+                    setSavingCoupon(true)
+                    try {
+                      const res = await fetch('/api/admin/coupons', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          code: couponForm.code,
+                          discount_percent: Number(couponForm.discount_percent),
+                          expires_at: couponForm.expires_at || null,
+                        }),
+                      })
+                      if (res.ok) {
+                        setShowCouponForm(false)
+                        fetchCoupons()
+                      }
+                    } catch { console.error('Error al crear cupón') }
+                    finally { setSavingCoupon(false) }
+                  }} className="p-6 space-y-5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">Código *</label>
+                      <input type="text" required value={couponForm.code} onChange={e => setCouponForm(p => ({ ...p, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '') }))} placeholder="EJ: VERANO20" className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">Descuento (%) *</label>
+                      <input type="number" required min={1} max={100} value={couponForm.discount_percent} onChange={e => setCouponForm(p => ({ ...p, discount_percent: e.target.value }))} placeholder="15" className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">Fecha de vencimiento (opcional)</label>
+                      <input type="date" value={couponForm.expires_at ? couponForm.expires_at.split('T')[0] : ''} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))} className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button type="button" onClick={() => setShowCouponForm(false)} className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold py-3 px-4 rounded-xl text-xs transition">Cancelar</button>
+                      <button type="submit" disabled={savingCoupon} className="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 shadow-lg shadow-emerald-800/10">
+                        {savingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                        Crear Cupón
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </main>
 
