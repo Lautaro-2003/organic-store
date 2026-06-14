@@ -290,12 +290,14 @@ export default function Navbar() {
           {!authLoading && (
             user ? (
               <>
-                <div className="px-4 py-2 border-b border-stone-100 mb-1">
-                  <p className="text-xs font-semibold text-stone-900 truncate">
-                    {user.user_metadata?.full_name || user.email}
-                  </p>
-                  <p className="text-[10px] text-stone-400 truncate">{user.email}</p>
-                </div>
+                <Link
+                  href="/perfil"
+                  onClick={() => setIsOpen(false)}
+                  className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
+                >
+                  <span>Mis datos</span>
+                  <User className="w-4 h-4 opacity-70" />
+                </Link>
                 <Link
                   href="/mis-compras"
                   onClick={() => setIsOpen(false)}

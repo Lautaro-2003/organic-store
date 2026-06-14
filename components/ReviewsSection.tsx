@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { supabaseBrowser } from '@/lib/supabase-browser'
-import { Star, MessageSquare, User, Loader2, Send } from 'lucide-react'
+import { Star, MessageSquare, User, Loader2, Send, Pencil, Trash2 } from 'lucide-react'
 
 interface Review {
   id: string
@@ -16,9 +16,10 @@ interface Review {
 
 interface Props {
   productId: string
+  onReviewSubmitted?: () => void
 }
 
-export function ReviewsSection({ productId }: Props) {
+export function ReviewsSection({ productId, onReviewSubmitted }: Props) {
   const { user } = useAuth()
   const [reviews, setReviews] = useState<Review[]>([])
   const [loading, setLoading] = useState(true)
@@ -27,6 +28,12 @@ export function ReviewsSection({ productId }: Props) {
   const [comment, setComment] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editRating, setEditRating] = useState(0)
+  const [editHoverRating, setEditHoverRating] = useState(0)
+  const [editComment, setEditComment] = useState('')
+  const [editSubmitting, setEditSubmitting] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -62,12 +69,83 @@ export function ReviewsSection({ productId }: Props) {
       setReviews((prev) => [data.review, ...prev])
       setRating(0)
       setComment('')
+      onReviewSubmitted?.()
     } else {
       const data = await res.json()
       setError(data.error || 'Error al enviar la reseña')
     }
 
     setSubmitting(false)
+  }
+
+  function handleStartEdit(review: Review) {
+    setEditingId(review.id)
+    setEditRating(review.rating)
+    setEditComment(review.comment)
+    setError('')
+    setDeletingId(null)
+  }
+
+  function handleCancelEdit() {
+    setEditingId(null)
+    setEditRating(0)
+    setEditComment('')
+    setError('')
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault()
+    if (!editingId) return
+    if (editRating === 0) { setError('Seleccioná una puntuación'); return }
+    if (!editComment.trim()) { setError('Escribí un comentario'); return }
+
+    setEditSubmitting(true)
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
+    if (!session) { setError('Iniciá sesión'); setEditSubmitting(false); return }
+
+    const res = await fetch('/api/reviews', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({ id: editingId, rating: editRating, comment: editComment.trim() }),
+    })
+
+    if (res.ok) {
+      const data = await res.json()
+      setReviews((prev) => prev.map((r) => r.id === editingId ? { ...r, ...data.review } : r))
+      setEditingId(null)
+      setEditRating(0)
+      setEditComment('')
+      onReviewSubmitted?.()
+    } else {
+      const data = await res.json()
+      setError(data.error || 'Error al actualizar')
+    }
+
+    setEditSubmitting(false)
+  }
+
+  async function handleDelete(reviewId: string) {
+    const { data: { session } } = await supabaseBrowser.auth.getSession()
+    if (!session) { setError('Iniciá sesión para eliminar'); return }
+
+    console.log('[ReviewsSection] handleDelete ejecutado:', { reviewId, token: session.access_token?.slice(0, 20) + '...' })
+
+    const res = await fetch(`/api/reviews?id=${reviewId}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+
+    if (res.ok) {
+      setReviews((prev) => prev.filter((r) => r.id !== reviewId))
+      setDeletingId(null)
+      onReviewSubmitted?.()
+    } else {
+      const data = await res.json()
+      setError(data.error || 'Error al eliminar')
+    }
   }
 
   function formatDate(dateStr: string) {
@@ -177,16 +255,105 @@ export function ReviewsSection({ productId }: Props) {
                     <p className="text-[10px] text-stone-400">{formatDate(review.created_at)}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-0.5">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <Star
-                      key={i}
-                      className={`w-3 h-3 ${i < review.rating ? 'text-amber-400 fill-amber-400' : 'text-stone-200 fill-stone-200'}`}
-                    />
-                  ))}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-0.5">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-3 h-3 ${i < review.rating ? 'text-amber-400 fill-amber-400' : 'text-stone-200 fill-stone-200'}`}
+                      />
+                    ))}
+                  </div>
+                  {user && review.user_id === user.id && editingId !== review.id && (
+                    <div className="flex items-center gap-0.5 ml-1">
+                      <button
+                        onClick={() => handleStartEdit(review)}
+                        className="p-1 text-stone-400 hover:text-emerald-600 transition rounded-lg hover:bg-stone-100"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setDeletingId(deletingId === review.id ? null : review.id)}
+                        className="p-1 text-stone-400 hover:text-red-600 transition rounded-lg hover:bg-stone-100"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-              <p className="text-stone-600 text-sm leading-relaxed">{review.comment}</p>
+
+              {editingId === review.id ? (
+                <form onSubmit={handleSaveEdit} className="space-y-3">
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => {
+                      const star = i + 1
+                      const filled = star <= (editHoverRating || editRating)
+                      return (
+                        <button
+                          key={i}
+                          type="button"
+                          onMouseEnter={() => setEditHoverRating(star)}
+                          onMouseLeave={() => setEditHoverRating(0)}
+                          onClick={() => setEditRating(star)}
+                          className="transition-transform hover:scale-110"
+                        >
+                          <Star
+                            className={`w-5 h-5 ${filled ? 'text-amber-400 fill-amber-400' : 'text-stone-200 fill-stone-200'}`}
+                          />
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <textarea
+                    value={editComment}
+                    onChange={(e) => setEditComment(e.target.value)}
+                    rows={2}
+                    className="w-full bg-stone-50 border border-stone-200 rounded-xl p-3 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition resize-none"
+                  />
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="submit"
+                      disabled={editSubmitting}
+                      className="inline-flex items-center gap-1.5 bg-emerald-800 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition disabled:opacity-60"
+                    >
+                      {editSubmitting ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        'Guardar'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="text-xs font-bold text-stone-400 hover:text-stone-600 transition px-3 py-2"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <p className="text-stone-600 text-sm leading-relaxed">{review.comment}</p>
+                  {deletingId === review.id && (
+                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-stone-100">
+                      <span className="text-xs text-stone-500">¿Eliminar esta reseña?</span>
+                      <button
+                        onClick={() => handleDelete(review.id)}
+                        className="text-xs font-bold text-red-600 hover:text-red-700 transition"
+                      >
+                        Eliminar
+                      </button>
+                      <button
+                        onClick={() => setDeletingId(null)}
+                        className="text-xs font-bold text-stone-400 hover:text-stone-600 transition"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           ))}
         </div>
