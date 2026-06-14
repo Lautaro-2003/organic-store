@@ -19,7 +19,7 @@ interface ShippingAddress {
 
 const emptyShipping: ShippingAddress = {
   fullName: '', phone: '', street: '', apartment: '',
-  neighborhood: '', province: '', zipCode: '', notes: '',
+  neighborhood: '', province: 'Santa Fe', zipCode: '', notes: '',
 };
 
 const provinces = [
@@ -55,6 +55,11 @@ export default function CarritoPage() {
     if (!shipping.neighborhood.trim()) errors.push('Barrio/Localidad');
     if (!shipping.province) errors.push('Provincia');
     if (!shipping.zipCode.trim()) errors.push('Código postal');
+    if (shipping.neighborhood.trim() && !shipping.neighborhood.toLowerCase().includes('rosario')) {
+      setError('Lo sentimos, por el momento solo realizamos envíos dentro de Rosario.');
+      setFormErrors(errors);
+      return false;
+    }
     setFormErrors(errors);
     return errors.length === 0;
   }
@@ -232,10 +237,10 @@ export default function CarritoPage() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1">Provincia *</label>
-                    <select value={shipping.province} onChange={e => setShipping(p => ({ ...p, province: e.target.value }))} className="w-full bg-stone-50 border border-stone-200 rounded-xl py-2.5 px-3.5 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition appearance-none cursor-pointer">
-                      <option value="">Seleccionar provincia</option>
-                      {provinces.map(p => <option key={p} value={p}>{p}</option>)}
+                    <select value={shipping.province} disabled className="w-full bg-stone-100 border border-stone-200 rounded-xl py-2.5 px-3.5 text-sm text-stone-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition appearance-none cursor-not-allowed">
+                      <option value="Santa Fe">Santa Fe</option>
                     </select>
+                    <p className="text-[10px] text-stone-400 mt-1.5">Solo realizamos envíos en Rosario, Santa Fe.</p>
                   </div>
                   <div className="sm:col-span-2">
                     <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1">Notas adicionales</label>
