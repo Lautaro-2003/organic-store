@@ -707,15 +707,14 @@ export default function AdminDashboard() {
                               onChange={e => updateOrderStatus(order.id, e.target.value)}
                               disabled={updatingOrderId === order.id}
                               className={`text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider border-0 cursor-pointer appearance-none ${
-                                order.status === 'pendiente' || order.status === 'confirmed'
+                                order.status === 'pendiente'
                                   ? 'bg-amber-50 text-amber-700'
                                   : order.status === 'en camino'
                                   ? 'bg-blue-50 text-blue-700'
-                                  : 'bg-stone-50 text-stone-700'
+                                  : 'bg-emerald-50 text-emerald-700'
                               }`}
                             >
                               <option value="pendiente">Pendiente</option>
-                              <option value="confirmed">Confirmada</option>
                               <option value="en camino">En camino</option>
                               <option value="entregado">Entregado</option>
                             </select>
