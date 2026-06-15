@@ -212,9 +212,6 @@ export async function POST(request: NextRequest) {
 
     await cleanupReservations()
 
-    // --- Limpiar carrito abandonado ---
-    await supabase.from('abandoned_carts').delete().eq('user_id', user.id)
-
     const resend = getResend()
     const adminEmail = process.env.ADMIN_EMAIL
     const from = process.env.RESEND_FROM || 'Org\u00e1nico <pedidos@organico.com>'
