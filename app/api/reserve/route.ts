@@ -11,9 +11,36 @@ function getSupabaseAdmin() {
   })
 }
 
+async function getUserFromToken(token: string) {
+  const { data: { user }, error } = await getSupabaseAdmin().auth.getUser(token)
+  if (error || !user) return null
+  return user
+}
+
+async function hasUserUsedCoupon(userId: string, couponCode: string) {
+  const { count } = await getSupabaseAdmin()
+    .from('orders')
+    .select('*', { count: 'exact', head: true })
+    .eq('user_id', userId)
+    .eq('coupon_code', couponCode)
+    .neq('status', 'cancelled')
+
+  return (count ?? 0) > 0
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const { items } = await request.json()
+    const authHeader = request.headers.get('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return Response.json({ error: 'No autorizado' }, { status: 401 })
+    }
+
+    const user = await getUserFromToken(authHeader.slice(7))
+    if (!user) {
+      return Response.json({ error: 'Token inválido' }, { status: 401 })
+    }
+
+    const { items, coupon_code, discount_percent } = await request.json()
     if (!items || items.length === 0) {
       return Response.json({ error: 'Carrito vacío' }, { status: 400 })
     }
@@ -29,7 +56,7 @@ export async function POST(request: NextRequest) {
 
     const { data: products } = await supabase
       .from('products')
-      .select('id, name, stock')
+      .select('id, name, price, stock')
       .in('id', productIds)
 
     if (!products || products.length !== items.length) {
@@ -94,16 +121,57 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const priceMap = new Map(products.map((p: any) => [p.id, p.price]))
+    let subtotal = 0
+    for (const item of items) {
+      subtotal += (priceMap.get(item.id) || item.price) * item.quantity
+    }
+
+    let discountAmount = 0
+    let validatedCouponCode: string | null = null
+
+    if (coupon_code && discount_percent) {
+      const { data: coupon, error: couponError } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', coupon_code.toUpperCase().trim())
+        .single()
+
+      if (!couponError && coupon && coupon.active) {
+        const expired = coupon.expires_at && new Date(coupon.expires_at) < new Date()
+        const reachedLimit = coupon.max_uses !== null && coupon.uses_count >= coupon.max_uses
+        const belowMinimum = coupon.min_order_amount !== null && subtotal < coupon.min_order_amount
+        const alreadyUsed = await hasUserUsedCoupon(user.id, coupon.code)
+
+        if (!expired && !reachedLimit && !belowMinimum && !alreadyUsed) {
+          validatedCouponCode = coupon.code
+          discountAmount = Math.round((subtotal * discount_percent) / 100)
+        }
+      }
+    }
+
     const client = new MercadoPagoConfig({ accessToken: token })
 
-    const body = {
-      items: items.map((item: { id: string; name: string; quantity: number; price: number }) => ({
-        id: item.id,
-        title: item.name,
-        quantity: Number(item.quantity),
-        unit_price: Number(item.price),
+    const mpItems = items.map((item: { id: string; name: string; quantity: number; price: number }) => ({
+      id: item.id,
+      title: item.name,
+      quantity: Number(item.quantity),
+      unit_price: Number(item.price),
+      currency_id: 'ARS',
+    }))
+
+    if (discountAmount > 0) {
+      mpItems.push({
+        id: 'coupon_discount',
+        title: `Descuento cupón ${validatedCouponCode} (${discount_percent}%)`,
+        quantity: 1,
+        unit_price: -discountAmount,
         currency_id: 'ARS',
-      })),
+      })
+    }
+
+    const body = {
+      items: mpItems,
       back_urls: {
         success: `http://localhost:3000/carrito/resultado?status=approved&session_id=${session_id}`,
         failure: `http://localhost:3000/carrito/resultado?status=rejected&session_id=${session_id}`,

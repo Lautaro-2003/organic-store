@@ -82,9 +82,8 @@ function ResultadoContent() {
 
         const shippingData = JSON.parse(pendingShipping);
 
-        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        const shippingCost = subtotal >= 15000 ? 0 : 1500;
-        const total = subtotal + shippingCost;
+        const pendingOrder = localStorage.getItem('pending_order');
+        const couponCode = pendingOrder ? JSON.parse(pendingOrder).coupon_code : null;
 
         async function postOrder(sid: string | null) {
           return fetch('/api/orders', {
@@ -95,9 +94,9 @@ function ResultadoContent() {
             },
             body: JSON.stringify({
               items: cart.map(({ id, name, quantity, price }) => ({ id, name, quantity, price })),
-              total,
               shipping_address: shippingData,
               ...(sid ? { session_id: sid } : {}),
+              ...(couponCode ? { coupon_code: couponCode } : {}),
             }),
           })
         }

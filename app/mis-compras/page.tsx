@@ -20,6 +20,8 @@ interface Order {
   total: number;
   status: string;
   created_at: string;
+  coupon_code?: string | null;
+  discount_amount?: number | null;
 }
 
 function formatDate(dateStr: string) {
@@ -136,6 +138,13 @@ export default function MisComprasPage() {
                     : order.status === 'confirmed' ? 'Confirmada'
                     : order.status}
                 </span>
+                {order.discount_amount ? (
+                  <div className="mt-1.5">
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg inline-block">
+                      {order.coupon_code ? `Cupón ${order.coupon_code} — ` : ''}ahorraste $ {order.discount_amount.toLocaleString('es-AR')}
+                    </span>
+                  </div>
+                ) : null}
                 <p className="font-black text-stone-900 text-lg mt-1">
                   $ {order.total.toLocaleString('es-AR')}
                 </p>

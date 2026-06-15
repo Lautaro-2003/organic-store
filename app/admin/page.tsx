@@ -8,7 +8,7 @@ import {
   Package, Plus, Pencil, Trash2, X, Search, Leaf,
   ArrowUpDown, LogOut, Upload, ImageIcon, AlertTriangle,
   Check, Loader2, DollarSign, ShoppingBag, PackageCheck,
-  ClipboardList, ChevronDown, ChevronUp, MapPin, Phone, User, Calendar, Percent, Tag,
+  ClipboardList, ChevronDown, ChevronUp, MapPin, Phone, User, Calendar, Percent, Tag, Eye,
 } from 'lucide-react';
 import type { Product } from '@/types/product';
 
@@ -47,6 +47,8 @@ interface Coupon {
   active: boolean;
   expires_at: string | null;
   created_at: string;
+  uses_count?: number;
+  max_uses?: number | null;
 }
 
 type Tab = 'productos' | 'ordenes' | 'cupones';
@@ -79,9 +81,13 @@ export default function AdminDashboard() {
 
   const [uploading, setUploading] = useState(false);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
-  const [couponForm, setCouponForm] = useState({ code: '', discount_percent: '', expires_at: '' });
+  const [couponForm, setCouponForm] = useState({ code: '', discount_percent: '', expires_at: '', max_uses: '', min_order_amount: '' });
   const [showCouponForm, setShowCouponForm] = useState(false);
   const [savingCoupon, setSavingCoupon] = useState(false);
+  const [usageData, setUsageData] = useState<any[] | null>(null);
+  const [usageCoupon, setUsageCoupon] = useState<Coupon | null>(null);
+  const [loadingUsage, setLoadingUsage] = useState(false);
+  const [usageError, setUsageError] = useState('');
 
   async function fetchProducts() {
     try {
@@ -942,7 +948,7 @@ export default function AdminDashboard() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-black text-stone-900">Cupones de descuento</h2>
               <button
-                onClick={() => { setCouponForm({ code: '', discount_percent: '', expires_at: '' }); setShowCouponForm(true); }}
+                onClick={() => { setCouponForm({ code: '', discount_percent: '', expires_at: '', max_uses: '', min_order_amount: '' }); setShowCouponForm(true); }}
                 className="bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-2.5 px-5 rounded-xl text-xs transition-all duration-200 flex items-center gap-1.5 shadow-lg shadow-emerald-800/10"
               >
                 <Plus className="w-4 h-4" />
@@ -969,6 +975,7 @@ export default function AdminDashboard() {
                         <th className="text-left px-5 py-3">Código</th>
                         <th className="text-left px-5 py-3">Descuento</th>
                         <th className="text-left px-5 py-3">Estado</th>
+                        <th className="text-left px-5 py-3 hidden lg:table-cell">Usos</th>
                         <th className="text-left px-5 py-3 hidden sm:table-cell">Vence</th>
                         <th className="text-right px-5 py-3">Acciones</th>
                       </tr>
@@ -987,12 +994,42 @@ export default function AdminDashboard() {
                               {coupon.active ? 'Activo' : 'Inactivo'}
                             </span>
                           </td>
+                          <td className="px-5 py-4 hidden lg:table-cell">
+                            <span className="text-xs text-stone-500">
+                              {coupon.uses_count ?? 0}{coupon.max_uses ? ` / ${coupon.max_uses}` : ''}
+                            </span>
+                          </td>
                           <td className="px-5 py-4 hidden sm:table-cell">
                             <span className="text-xs text-stone-500">
                               {coupon.expires_at ? new Date(coupon.expires_at).toLocaleDateString('es-AR') : 'Sin fecha'}
                             </span>
                           </td>
                           <td className="px-5 py-4 text-right">
+                            <button
+                              onClick={async () => {
+                                setUsageCoupon(coupon)
+                                setLoadingUsage(true)
+                                setUsageData(null)
+                                setUsageError('')
+                                try {
+                                  const res = await fetch(`/api/admin/coupons/usage/${coupon.code}`)
+                                  const data = await res.json()
+                                  if (res.ok) {
+                                    setUsageData(data.usage)
+                                  } else {
+                                    setUsageError(data.error || 'Error al cargar usos')
+                                  }
+                                } catch {
+                                  setUsageError('Error de conexión')
+                                } finally {
+                                  setLoadingUsage(false)
+                                }
+                              }}
+                              className="p-2 text-stone-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition"
+                              title="Ver usos"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={async () => {
                                 const res = await fetch(`/api/admin/coupons/${coupon.id}`, { method: 'PATCH' })
@@ -1036,6 +1073,8 @@ export default function AdminDashboard() {
                           code: couponForm.code,
                           discount_percent: Number(couponForm.discount_percent),
                           expires_at: couponForm.expires_at || null,
+                          max_uses: couponForm.max_uses ? Number(couponForm.max_uses) : null,
+                          min_order_amount: couponForm.min_order_amount ? Number(couponForm.min_order_amount) : null,
                         }),
                       })
                       if (res.ok) {
@@ -1057,6 +1096,14 @@ export default function AdminDashboard() {
                       <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">Fecha de vencimiento (opcional)</label>
                       <input type="date" value={couponForm.expires_at ? couponForm.expires_at.split('T')[0] : ''} onChange={e => setCouponForm(p => ({ ...p, expires_at: e.target.value ? new Date(e.target.value).toISOString() : '' }))} className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
                     </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">Usos máximos (opcional, vacío = ilimitado)</label>
+                      <input type="number" min={1} value={couponForm.max_uses} onChange={e => setCouponForm(p => ({ ...p, max_uses: e.target.value }))} placeholder="Ej: 100" className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-stone-700 uppercase tracking-wider mb-1.5">Monto mínimo de compra (opcional)</label>
+                      <input type="number" min={0} value={couponForm.min_order_amount} onChange={e => setCouponForm(p => ({ ...p, min_order_amount: e.target.value }))} placeholder="Ej: 5000" className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 text-sm text-stone-900 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition" />
+                    </div>
                     <div className="flex gap-3 pt-2">
                       <button type="button" onClick={() => setShowCouponForm(false)} className="flex-1 bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold py-3 px-4 rounded-xl text-xs transition">Cancelar</button>
                       <button type="submit" disabled={savingCoupon} className="flex-1 bg-emerald-800 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl text-xs transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 shadow-lg shadow-emerald-800/10">
@@ -1071,6 +1118,106 @@ export default function AdminDashboard() {
           </>
         )}
       </main>
+
+      {usageCoupon && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center p-4 overflow-y-auto" onClick={() => { setUsageCoupon(null); setUsageData(null) }}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl mt-12 mb-12" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-6 border-b border-stone-100">
+              <div className="flex items-center gap-3">
+                <div className="bg-emerald-50 text-emerald-700 p-2.5 rounded-xl">
+                  <Percent className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-black text-stone-900 text-lg">{usageCoupon.code}</h2>
+                  <p className="text-xs text-stone-500">
+                    {usageCoupon.discount_percent}% de descuento
+                    {' — '}
+                    {usageCoupon.uses_count ?? 0}
+                    {usageCoupon.max_uses ? ` / ${usageCoupon.max_uses}` : ''} usos
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => { setUsageCoupon(null); setUsageData(null) }} className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-xl transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              {loadingUsage ? (
+                <div className="py-16 flex items-center justify-center">
+                  <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+                </div>
+              ) : usageError ? (
+                <div className="py-12 text-center">
+                  <p className="text-red-500 text-sm font-semibold">{usageError}</p>
+                  <button onClick={() => setUsageCoupon(null)} className="mt-4 text-xs text-stone-400 hover:text-stone-600 underline">Cerrar</button>
+                </div>
+              ) : !usageData || usageData.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Tag className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                  <p className="font-bold text-stone-900">Este cupón no ha sido usado aún</p>
+                  <p className="text-sm text-stone-500 mt-1">Cuando un cliente use este cupón, el historial aparecerá acá.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-stone-50 text-stone-500 text-[10px] font-bold uppercase tracking-wider">
+                        <th className="text-left px-4 py-3">Fecha</th>
+                        <th className="text-left px-4 py-3">Email</th>
+                        <th className="text-left px-4 py-3 hidden sm:table-cell">N° de orden</th>
+                        <th className="text-right px-4 py-3">Total pagado</th>
+                        <th className="text-right px-4 py-3 hidden sm:table-cell">Descuento</th>
+                        <th className="text-center px-4 py-3">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {usageData.map((row: any) => {
+                        const badgeColor =
+                          row.status === 'pendiente'
+                            ? 'bg-amber-50 text-amber-700'
+                            : row.status === 'en camino'
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-emerald-50 text-emerald-700'
+                        const label =
+                          row.status === 'pendiente' ? 'Pendiente'
+                          : row.status === 'en camino' ? 'En camino'
+                          : row.status === 'entregado' ? 'Entregado'
+                          : row.status === 'confirmed' ? 'Confirmado'
+                          : row.status
+                        return (
+                          <tr key={row.id} className="hover:bg-stone-50/50 transition">
+                            <td className="px-4 py-4 text-stone-700 text-xs whitespace-nowrap">
+                              {new Date(row.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            </td>
+                            <td className="px-4 py-4 text-stone-600 text-xs max-w-[180px] truncate">
+                              {row.email || '\u2014'}
+                            </td>
+                            <td className="px-4 py-4 text-stone-400 text-xs font-mono hidden sm:table-cell">
+                              {row.id.slice(0, 8)}
+                            </td>
+                            <td className="px-4 py-4 text-right font-semibold text-stone-900 text-sm whitespace-nowrap">
+                              $ {row.total.toLocaleString('es-AR')}
+                            </td>
+                            <td className="px-4 py-4 text-right text-emerald-600 font-semibold text-sm whitespace-nowrap hidden sm:table-cell">
+                              {row.discount_amount > 0 ? `- $ ${row.discount_amount.toLocaleString('es-AR')}` : '\u2014'}
+                            </td>
+                            <td className="px-4 py-4 text-center">
+                              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider whitespace-nowrap ${badgeColor}`}>
+                                {label}
+                              </span>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteConfirm && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">

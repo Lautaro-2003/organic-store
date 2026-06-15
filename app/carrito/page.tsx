@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { initMercadoPago, Wallet } from '@mercadopago/sdk-react';
 import { useCartStore } from '@/store/cartStore';
 import { useAuth } from '@/context/AuthContext';
+import { supabaseBrowser } from '@/lib/supabase-browser';
 import { Trash2, Minus, Plus, ShoppingBag, ArrowLeft, Loader, CreditCard, ChevronDown, ChevronUp, Tag, Percent, X, LogIn } from 'lucide-react';
 
 interface ShippingAddress {
@@ -91,10 +92,22 @@ export default function CarritoPage() {
     localStorage.setItem('pending_shipping', JSON.stringify(shipping));
 
     try {
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      if (!session) {
+        setError('Debés iniciar sesión para continuar')
+        return
+      }
       const res = await fetch('/api/reserve', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: cart }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          items: cart,
+          coupon_code: appliedCoupon?.code || null,
+          discount_percent: discountPercent || null,
+        }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
@@ -116,9 +129,17 @@ export default function CarritoPage() {
     setAppliedCoupon(null)
 
     try {
+      const { data: { session } } = await supabaseBrowser.auth.getSession()
+      if (!session) {
+        setCouponError('Debés iniciar sesión para usar cupones')
+        return
+      }
       const res = await fetch('/api/coupons/validate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ code: couponCode }),
       })
       const data = await res.json()

@@ -31,7 +31,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const { code, discount_percent, expires_at } = await request.json()
+    const { code, discount_percent, expires_at, max_uses, min_order_amount } = await request.json()
 
     if (!code || !discount_percent) {
       return Response.json({ error: 'Faltan datos' }, { status: 400 })
@@ -39,7 +39,13 @@ export async function POST(request: NextRequest) {
 
     const { data, error } = await getSupabaseAdmin()
       .from('coupons')
-      .insert({ code: code.toUpperCase(), discount_percent, expires_at: expires_at || null })
+      .insert({
+        code: code.toUpperCase(),
+        discount_percent,
+        expires_at: expires_at || null,
+        max_uses: max_uses || null,
+        min_order_amount: min_order_amount || null,
+      })
       .select()
       .single()
 
