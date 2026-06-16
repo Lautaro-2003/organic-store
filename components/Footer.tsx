@@ -38,7 +38,7 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-stone-900 text-stone-100 px-6 py-12 mt-20 rounded-t-[2.5rem]">
+    <footer className="bg-stone-900 text-stone-100 px-6 py-12 mt-20 rounded-t-[2.5rem] max-w-full overflow-x-hidden">
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-10 border-b border-stone-800 pb-10">
         {/* Brand */}
         <div>

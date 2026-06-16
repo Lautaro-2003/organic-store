@@ -281,19 +281,19 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-stone-50 overflow-x-hidden">
       <header className="bg-white border-b border-stone-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-emerald-600 text-white p-2 rounded-xl shadow-md shadow-emerald-600/10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="bg-emerald-600 text-white p-2 rounded-xl shadow-md shadow-emerald-600/10 shrink-0">
               <Leaf className="w-5 h-5" />
             </div>
-            <div>
-              <h1 className="font-black text-stone-900 tracking-tight leading-none">Panel Admin</h1>
-              <p className="text-[10px] text-stone-500 font-bold tracking-widest uppercase">Gestión de Productos</p>
+            <div className="min-w-0">
+              <h1 className="font-black text-stone-900 tracking-tight leading-none truncate">Panel Admin</h1>
+              <p className="text-[10px] text-stone-500 font-bold tracking-widest uppercase truncate">Gestión de Productos</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <Link
               href="/"
               className="text-xs font-semibold text-stone-500 hover:text-emerald-700 transition px-3 py-2 rounded-lg hover:bg-stone-100"

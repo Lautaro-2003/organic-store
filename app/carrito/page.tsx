@@ -183,21 +183,21 @@ export default function CarritoPage() {
   }
 
   return (
-    <div className="py-12 max-w-5xl mx-auto">
-      <div className="mb-8 flex items-center justify-between">
+    <div className="py-12 max-w-5xl mx-auto overflow-x-hidden">
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
             Tu pedido
           </span>
-          <h1 className="text-3xl font-black text-stone-900 tracking-tight">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-stone-900 tracking-tight break-words">
             Mi Carrito ({totalItems})
           </h1>
         </div>
         <button
           onClick={clearCart}
-          className="text-xs text-stone-400 hover:text-red-500 font-medium transition flex items-center gap-1"
+          className="text-xs text-stone-400 hover:text-red-500 font-medium transition flex items-center gap-1 self-start sm:self-auto"
         >
-          <Trash2 className="w-3.5 h-3.5" />
+          <Trash2 className="w-3.5 h-3.5 shrink-0" />
           Vaciar carrito
         </button>
       </div>

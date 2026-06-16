@@ -2,14 +2,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { decrypt } from '@/lib/session'
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   const isAdminRoute = pathname.startsWith('/admin')
   const isAdminLogin = pathname === '/admin/login'
   const isAdminApi = pathname.startsWith('/api/admin')
 
-  if (isAdminApi) {
+  if (isAdminApi && pathname !== '/api/admin/me') {
     const sessionCookie = request.cookies.get('session')?.value
     const session = await decrypt(sessionCookie)
 

@@ -18,7 +18,7 @@ export function ProductPageClient({ product }: Props) {
   const outOfStock = (product.stock ?? 0) <= 0
 
   return (
-    <div className="py-12">
+    <div className="py-12 overflow-x-hidden">
       <Link
         href="/productos"
         className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500 hover:text-emerald-700 transition mb-8"

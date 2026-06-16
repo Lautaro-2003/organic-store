@@ -98,21 +98,21 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="space-y-16 pb-12">
+    <div className="space-y-16 pb-12 overflow-x-hidden">
       <Hero />
 
       {/* Featured Products */}
       <section>
-        <div className="flex justify-between items-end mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-2 mb-8">
           <div>
             <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
               Selección de la casa
             </span>
-            <h2 className="text-2xl font-bold text-stone-900 tracking-tight">
+            <h2 className="text-xl md:text-2xl font-bold text-stone-900 tracking-tight">
               Productos Destacados
             </h2>
           </div>
-          <a href="/productos" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition duration-200">
+          <a href="/productos" className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 transition duration-200 whitespace-nowrap">
             Ver todo el catálogo →
           </a>
         </div>
@@ -134,7 +134,7 @@ export default async function HomePage() {
       </section>
 
       {/* Why Choose Us */}
-      <section className="bg-stone-100/80 rounded-3xl p-8 md:p-12 border border-stone-200/50">
+      <section className="bg-stone-100/80 rounded-3xl p-8 md:p-12 border border-stone-200/50 overflow-hidden">
         <div className="text-center mb-10">
           <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
             Nuestros pilares
@@ -163,7 +163,7 @@ export default async function HomePage() {
       </section>
 
       {/* Offer Banners */}
-      <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
         {banners.map((banner, i) => (
           <div
             key={i}
@@ -189,7 +189,7 @@ export default async function HomePage() {
       </section>
 
       {/* Testimonials */}
-      <section>
+      <section className="overflow-hidden">
         <div className="text-center mb-10">
           <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
             Testimonios reales

@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { useCartStore } from '@/store/cartStore';
 import { CheckCircle, XCircle, Clock, ArrowLeft, ShoppingBag, Package, Loader2 } from 'lucide-react';
@@ -38,12 +38,40 @@ type PaymentStatus = keyof typeof statusConfig;
 
 function ResultadoContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [status, setStatus] = useState<PaymentStatus>('pending');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [countdown, setCountdown] = useState(5);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const cart = useCartStore((state) => state.cart);
   const clearCart = useCartStore((state) => state.clearCart);
+
+  useEffect(() => {
+    if (status !== 'approved') return;
+
+    let seconds = 5;
+    setCountdown(seconds);
+
+    intervalRef.current = setInterval(() => {
+      seconds--;
+      setCountdown(seconds);
+      if (seconds <= 0) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        router.push('/mis-compras');
+      }
+    }, 1000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [status, router]);
+
+  function goToMyPurchases() {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    router.push('/mis-compras');
+  }
 
   useEffect(() => {
     const s = searchParams.get('status') as PaymentStatus | null;
@@ -141,22 +169,27 @@ function ResultadoContent() {
       <div className={`${config.bg} border ${config.border} rounded-3xl p-10 text-center shadow-sm`}>
         <Icon className={`w-20 h-20 ${config.color} mx-auto mb-6 ${saving ? 'animate-pulse' : ''}`} />
         <h1 className="text-2xl font-black text-stone-900 mb-3">{config.title}</h1>
-        <p className="text-stone-600 text-sm mb-8 leading-relaxed">
-          {error ? '' : saving ? 'Guardando tu orden...' : config.description}
-        </p>
+          <p className="text-stone-600 text-sm mb-8 leading-relaxed">
+            {error ? '' : saving ? 'Guardando tu orden...' : config.description}
+          </p>
+          {status === 'approved' && !saving && countdown > 0 && (
+            <p className="text-stone-500 text-xs mb-6">
+              Serás redirigido a Mis Compras en {countdown} segundos...
+            </p>
+          )}
         {error && (
           <p className="text-red-500 text-sm mb-8 leading-relaxed font-semibold">{error}</p>
         )}
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           {status === 'approved' ? (
             <>
-              <Link
-                href="/mis-compras"
+              <button
+                onClick={goToMyPurchases}
                 className="inline-flex items-center justify-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-6 py-3 rounded-xl transition-all text-sm shadow-md"
               >
                 <Package className="w-4 h-4" />
                 Ver mis compras
-              </Link>
+              </button>
               <Link
                 href="/productos"
                 className="inline-flex items-center justify-center gap-2 bg-white border border-stone-200 text-stone-700 font-bold px-6 py-3 rounded-xl transition-all text-sm hover:bg-stone-50"

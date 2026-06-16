@@ -45,7 +45,7 @@ export default function ProductCard({ id, name, category, price, image, descript
   };
 
   return (
-    <div className="bg-white border border-stone-200 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-4 group flex flex-col">
+    <div className="bg-white border border-stone-200 rounded-2xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-4 group flex flex-col overflow-hidden">
       <div className="flex-1">
         <div className="bg-stone-100 rounded-xl aspect-[4/3] flex items-center justify-center relative overflow-hidden mb-4 border border-stone-100">
           <Image 
@@ -81,7 +81,7 @@ export default function ProductCard({ id, name, category, price, image, descript
         )}
       </div>
       
-      <div className="flex items-center justify-between mt-4 pt-3.5 border-t border-stone-100 shrink-0">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-4 pt-3.5 border-t border-stone-100 shrink-0">
         <div className="flex flex-col">
           {outOfStock ? (
             <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider leading-none">Sin stock</span>
@@ -96,7 +96,7 @@ export default function ProductCard({ id, name, category, price, image, descript
         <button 
           onClick={handleAdd}
           disabled={isAdding || outOfStock || maxedOut}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm active:scale-95 ${
+          className={`w-full sm:w-auto flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-300 shadow-sm active:scale-95 ${
             outOfStock || maxedOut
               ? "bg-stone-200 text-stone-400 cursor-not-allowed"
               : isAdding 

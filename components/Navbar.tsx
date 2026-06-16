@@ -25,7 +25,7 @@ export default function Navbar() {
   const cart = useCartStore((state) => state.cart);
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, isAdmin, loading: authLoading, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -101,9 +101,9 @@ export default function Navbar() {
         <div className="bg-emerald-600 text-white p-2 rounded-xl group-hover:scale-105 transition-transform duration-300 shadow-md shadow-emerald-600/10">
           <Leaf className="w-5 h-5" />
         </div>
-        <div className="flex flex-col">
-          <span className="text-lg font-black tracking-tight text-emerald-950 leading-none">ORGÁNICO</span>
-          <span className="text-[10px] text-emerald-700/80 font-bold tracking-widest uppercase">Bio Mercado</span>
+        <div className="flex flex-col min-w-0 overflow-hidden">
+          <span className="text-lg font-black tracking-tight text-emerald-950 leading-none truncate">ORGÁNICO</span>
+          <span className="text-[10px] text-emerald-700/80 font-bold tracking-widest uppercase truncate">Bio Mercado</span>
         </div>
       </Link>
       
@@ -177,7 +177,7 @@ export default function Navbar() {
         </div>
 
         {!authLoading && (
-          user ? (
+          user || isAdmin ? (
             <div ref={userMenuRef} className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -189,23 +189,39 @@ export default function Navbar() {
 
               {userMenuOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-stone-200 rounded-2xl shadow-xl overflow-hidden z-50">
-                  <Link
-                    href="/perfil"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-stone-600 hover:text-emerald-700 hover:bg-stone-50 transition"
-                  >
-                    <User className="w-4 h-4" />
-                    Mis datos
-                  </Link>
+                  {isAdmin ? (
+                    <>
+                      <Link
+                        href="/admin"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-stone-600 hover:text-emerald-700 hover:bg-stone-50 transition"
+                      >
+                        <User className="w-4 h-4" />
+                        Panel Admin
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <Link
+                        href="/perfil"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-stone-600 hover:text-emerald-700 hover:bg-stone-50 transition"
+                      >
+                        <User className="w-4 h-4" />
+                        Mis datos
+                      </Link>
+                      <div className="border-t border-stone-100" />
+                      <Link
+                        href="/mis-compras"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-stone-600 hover:text-emerald-700 hover:bg-stone-50 transition"
+                      >
+                        <Package className="w-4 h-4" />
+                        Mis Compras
+                      </Link>
+                    </>
+                  )}
                   <div className="border-t border-stone-100" />
-                  <Link
-                    href="/mis-compras"
-                    onClick={() => setUserMenuOpen(false)}
-                    className="flex items-center gap-2 px-4 py-3 text-sm font-semibold text-stone-600 hover:text-emerald-700 hover:bg-stone-50 transition"
-                  >
-                    <Package className="w-4 h-4" />
-                    Mis Compras
-                  </Link>
                   <button
                     onClick={async () => { await signOut(); router.push('/') }}
                     className="w-full flex items-center gap-2 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 transition"
@@ -244,7 +260,7 @@ export default function Navbar() {
       </div>
 
       {/* Mobile Menu & Cart Button */}
-      <div className="flex items-center gap-4 md:hidden">
+      <div className="flex items-center gap-4 md:hidden shrink-0">
         <Link 
           href="/carrito" 
           className="relative bg-emerald-900 text-white p-2.5 rounded-full flex items-center justify-center shadow-md shadow-emerald-900/10"
@@ -258,73 +274,100 @@ export default function Navbar() {
         </Link>
         
         <button 
-          onClick={() => setIsOpen(!isOpen)}
-          className="text-stone-800 focus:outline-none p-1.5 hover:bg-stone-200/50 rounded-lg transition"
+          className="md:hidden p-2"
+          onClick={() => setIsOpen(prev => !prev)}
           aria-label="Abrir menú"
         >
           {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
-      {/* Mobile Dropdown Menu */}
+      {/* Mobile Overlay Menu */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 bg-stone-50 border-b border-stone-200 p-6 flex flex-col gap-4 shadow-xl md:hidden animate-in slide-in-from-top duration-200 z-40">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.path;
-            return (
-              <Link 
-                key={link.path} 
-                href={link.path} 
-                onClick={() => setIsOpen(false)}
-                className={`py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm transition-colors ${
-                  isActive 
-                    ? 'bg-emerald-50 text-emerald-950' 
-                    : 'text-stone-600 hover:bg-stone-100'
-                }`}
-              >
-                <span>{link.name}</span>
-                <ArrowRight className="w-4 h-4 opacity-70" />
-              </Link>
-            );
-          })}
-          {!authLoading && (
-            user ? (
-              <>
+        <div 
+          style={{
+            position: 'fixed',
+            top: '64px',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'white',
+            zIndex: 99999,
+            overflowY: 'auto',
+            padding: '16px 24px'
+          }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {navLinks.map((link) => {
+              const isActive = pathname === link.path;
+              return (
+                <Link 
+                  key={link.path} 
+                  href={link.path} 
+                  onClick={() => setIsOpen(false)}
+                  className={`py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm transition-colors ${
+                    isActive 
+                      ? 'bg-emerald-50 text-emerald-950' 
+                      : 'text-stone-600 hover:bg-stone-100'
+                  }`}
+                >
+                  <span>{link.name}</span>
+                  <ArrowRight className="w-4 h-4 opacity-70" />
+                </Link>
+              );
+            })}
+            {!authLoading && (
+              user || isAdmin ? (
+                <>
+                  {isAdmin ? (
+                    <Link
+                      href="/admin"
+                      onClick={() => setIsOpen(false)}
+                      className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
+                    >
+                      <span>Panel Admin</span>
+                      <User className="w-4 h-4 opacity-70" />
+                    </Link>
+                  ) : (
+                    <>
+                      <Link
+                        href="/perfil"
+                        onClick={() => setIsOpen(false)}
+                        className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
+                      >
+                        <span>Mis datos</span>
+                        <User className="w-4 h-4 opacity-70" />
+                      </Link>
+                      <Link
+                        href="/mis-compras"
+                        onClick={() => setIsOpen(false)}
+                        className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
+                      >
+                        <span>Mis Compras</span>
+                        <Package className="w-4 h-4 opacity-70" />
+                      </Link>
+                    </>
+                  )}
+                  <button
+                    onClick={async () => { await signOut(); setIsOpen(false); router.push('/') }}
+                    className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <span>Cerrar Sesión</span>
+                    <LogOut className="w-4 h-4 opacity-70" />
+                  </button>
+                </>
+              ) : (
                 <Link
-                  href="/perfil"
+                  href="/auth/login"
                   onClick={() => setIsOpen(false)}
                   className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
                 >
-                  <span>Mis datos</span>
+                  <span>Ingresar</span>
                   <User className="w-4 h-4 opacity-70" />
                 </Link>
-                <Link
-                  href="/mis-compras"
-                  onClick={() => setIsOpen(false)}
-                  className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
-                >
-                  <span>Mis Compras</span>
-                  <Package className="w-4 h-4 opacity-70" />
-                </Link>
-                <button
-                  onClick={async () => { await signOut(); setIsOpen(false); router.push('/') }}
-                  className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-red-500 hover:bg-red-50 transition-colors"
-                >
-                  <span>Cerrar Sesión</span>
-                  <LogOut className="w-4 h-4 opacity-70" />
-                </button>
-              </>
-            ) : (
-              <Link
-                href="/auth/login"
-                onClick={() => setIsOpen(false)}
-                className="py-2 px-4 rounded-xl flex justify-between items-center font-bold text-sm text-stone-600 hover:bg-stone-100 transition-colors"
-              >
-                <span>Ingresar</span>
-                <User className="w-4 h-4 opacity-70" />
-              </Link>
-            )
-          )}
+              )
+            )}
+          </div>
         </div>
       )}
     </nav>

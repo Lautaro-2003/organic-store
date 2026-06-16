@@ -92,12 +92,12 @@ export default function MisComprasPage() {
   }
 
   return (
-    <div className="py-12 max-w-4xl mx-auto">
+    <div className="py-12 max-w-4xl mx-auto overflow-x-hidden">
       <div className="mb-8">
         <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
           Tu cuenta
         </span>
-        <h1 className="text-3xl font-black text-stone-900 tracking-tight">
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-stone-900 tracking-tight break-words">
           Mis Compras
         </h1>
         <p className="text-stone-500 text-sm mt-1">

@@ -27,11 +27,11 @@ export async function POST(request: Request) {
         currency_id: 'ARS',
       })),
       back_urls: {
-        success: 'http://localhost:3000/carrito/resultado?status=approved',
-        failure: 'http://localhost:3000/carrito/resultado?status=rejected',
-        pending: 'http://localhost:3000/carrito/resultado?status=pending',
+        success: `${process.env.NEXT_PUBLIC_URL}/carrito/resultado?status=approved`,
+        failure: `${process.env.NEXT_PUBLIC_URL}/carrito/resultado?status=rejected`,
+        pending: `${process.env.NEXT_PUBLIC_URL}/carrito/resultado?status=pending`,
       },
-      // auto_return: 'approved',
+      auto_return: 'approved',
       statement_descriptor: 'TIENDA ORGANICA',
       payment_methods: {
         excluded_payment_types: [],

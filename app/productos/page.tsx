@@ -60,12 +60,12 @@ export default function ProductosPage() {
   }
 
   return (
-    <div className="py-12">
+    <div className="py-12 overflow-x-hidden">
       <div className="mb-10">
         <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block mb-1">
           Almacén Natural
         </span>
-        <h1 className="text-3xl font-black text-stone-900 tracking-tight">
+        <h1 className="text-xl md:text-2xl lg:text-3xl font-black text-stone-900 tracking-tight">
           Todos los Productos
         </h1>
         <p className="text-stone-500 text-sm mt-2">
